@@ -2,7 +2,7 @@ export function publicOrigin(
   config: Record<string, string | undefined>,
   requestOrigin?: string | null,
 ) {
-  const configured = config.APP_ORIGIN;
+  const configured = config.APP_ORIGIN || config.RENDER_EXTERNAL_URL;
   if (configured) {
     const url = new URL(configured);
     if (
@@ -49,6 +49,7 @@ export function productionIssues(config: Record<string, string | undefined>) {
       (k) =>
         !(
           config[k] ||
+          (k === "APP_ORIGIN" && config.RENDER_EXTERNAL_URL) ||
           (k === "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" &&
             config.NEXT_PUBLIC_SUPABASE_ANON_KEY)
         ),

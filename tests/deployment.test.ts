@@ -66,3 +66,34 @@ test("production scripts require nonces while development retains debugging supp
   assert.match(contentPolicy("abcdefghABCDEFGH12345678", true), /unsafe-eval/);
   assert.throws(() => contentPolicy("bad\nnonce", false));
 });
+
+test("Render supplied origin is validated and explicit app origin takes precedence", () => {
+  const config = {
+    APP_MODE: "production",
+    RENDER_EXTERNAL_URL: "https://panther-test.onrender.com",
+  };
+  assert.equal(
+    publicOrigin(config, "https://untrusted.example"),
+    config.RENDER_EXTERNAL_URL,
+  );
+  assert.equal(
+    productionIssues(config).includes("APP_ORIGIN is missing"),
+    false,
+  );
+  assert.equal(
+    productionIssues(config).includes("APP_ORIGIN is invalid"),
+    false,
+  );
+  assert.equal(
+    publicOrigin({ ...config, APP_ORIGIN: "https://custom.example" }),
+    "https://custom.example",
+  );
+  for (const value of [
+    "http://example.com",
+    "https://example.com/path",
+    "https://user:pass@example.com",
+  ])
+    assert.throws(() =>
+      publicOrigin({ APP_MODE: "production", RENDER_EXTERNAL_URL: value }),
+    );
+});

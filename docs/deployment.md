@@ -19,3 +19,5 @@ The app accepts `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` or, as a fallback, `NEXT_
 For a new dedicated empty project, `supabase/setup.sql` combines migrations 001–008 into one transaction for the Supabase SQL Editor. Apply it once, or use the individual migrations with the Supabase CLI; do not apply both. A service-role Data API key cannot execute arbitrary schema migrations. Database setup requires SQL Editor access, a database connection, or a Supabase management connection. After setup, the service-only `deployment_readiness()` function must report schema version 8.
 
 The Render blueprint is prepared but has not been deployed. It includes paid service plans; review costs before creating resources. Website publication, real Auth/email/MFA, licensed provider feeds and physical phone push delivery still require connected validation.
+
+On Render, the app uses the platform-provided `RENDER_EXTERNAL_URL` when `APP_ORIGIN` is unset. An explicit `APP_ORIGIN` takes precedence for a custom domain. Both use the same canonical HTTPS validation; request headers cannot supply the production origin.
