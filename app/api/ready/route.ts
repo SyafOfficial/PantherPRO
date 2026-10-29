@@ -9,18 +9,23 @@ export async function GET() {
       { status: "demo", production_ready: false },
       { headers },
     );
+  const configurationIssues = productionIssues(process.env);
+  if (!serviceConfigured())
+    configurationIssues.push("Service database settings are missing");
   if (
-    productionIssues(process.env).length ||
-    !serviceConfigured() ||
     !validVapidPair(
       process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
       process.env.VAPID_PRIVATE_KEY,
     )
   )
+    configurationIssues.push("VAPID key pair is missing or inconsistent");
+  if (configurationIssues.length)
     return Response.json(
       {
         status: "not_ready",
         checks: { configuration: false, database: false },
+        database_checked: false,
+        configurationIssues,
       },
       { status: 503, headers },
     );
