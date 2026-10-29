@@ -1,0 +1,37 @@
+name: Panther FX checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: panther-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_MODE: demo
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Select downloaded Chromium
+        run: echo "CHROMIUM_PATH=$(node -p 'require("@playwright/test").chromium.executablePath()')" >> "$GITHUB_ENV"
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure-results
+          path: test-results/
+          retention-days: 7
