@@ -2495,3 +2495,20 @@ footer p {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Real MT5 history stays inside phone viewport; source times are broker wall time. */
+.mt5-chart svg {
+  min-width: 0;
+  width: 100%;
+}
+.chart-footer {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.chart-footer > span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.segmented {
+  flex-wrap: wrap;
+}

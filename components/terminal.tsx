@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import MT5Chart from "@/components/mt5-chart";
+import type { MT5Display } from "@/lib/engine/display";
 import Link from "next/link";
 import CalendarEvents from "./calendar-events";
 import { STRATEGIES, TIMEFRAMES } from "@/lib/strategy";
@@ -105,8 +107,12 @@ export default function Terminal({
     clock >= Date.parse(intelligence.technical.valid_until)
       ? "insufficient_data"
       : intelligence.technical.bias;
-  const quote = market.quote;
-  const fresh = quote ? quoteFreshness(quote, clock) : false;
+  const [mt5, setMt5] = useState<MT5Display | null>(null);
+  const [mt5Error, setMt5Error] = useState(false);
+  const quote = mt5?.quote ?? market.quote;
+  const fresh = quote
+    ? quoteFreshness(quote, clock) && (!mt5 || !mt5Error)
+    : false;
   const quoteValue = quote
     ? Number(quote.bid).toLocaleString("en-US", {
         minimumFractionDigits: 2,
@@ -158,8 +164,49 @@ export default function Terminal({
   const [view, setView] = useState("Signals"),
     [mobile, setMobile] = useState(false),
     [filter, setFilter] = useState("All signals"),
-    [timeframe, setTimeframe] = useState("1H"),
+    [timeframe, setTimeframe] = useState(mode === "demo" ? "1H" : "H1"),
     [notice, setNotice] = useState(false);
+  useEffect(() => {
+    if (mode !== "connected" || !user) {
+      setMt5(null);
+      return;
+    }
+    let stopped = false;
+    let controller: AbortController | null = null;
+    const poll = async () => {
+      if (document.visibilityState === "hidden") {
+        timer = setTimeout(poll, 2000);
+        return;
+      }
+      controller = new AbortController();
+      const timeout = setTimeout(() => controller?.abort(), 8000);
+      try {
+        const response = await fetch(
+          `/api/market/mt5?timeframe=${encodeURIComponent(timeframe)}`,
+          { cache: "no-store", signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("feed unavailable");
+        const data = await response.json();
+        if (!stopped) {
+          setMt5(data);
+          setMt5Error(false);
+        }
+      } catch {
+        if (!stopped) setMt5Error(true);
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!stopped) timer = setTimeout(poll, 2000);
+    };
+    let timer: ReturnType<typeof setTimeout>;
+    setMt5(null);
+    void poll();
+    return () => {
+      stopped = true;
+      controller?.abort();
+      clearTimeout(timer);
+    };
+  }, [mode, user?.email, timeframe]);
   const demo = mode === "demo";
   const all = demo ? samples : signals;
   const [strategyFilter, setStrategyFilter] = useState("All strategies"),
@@ -321,14 +368,14 @@ export default function Terminal({
                 </>
               ) : (
                 <>
-                  <strong>Member workspace</strong> — Source availability is
-                  shown with each record. AI analysis and external delivery
-                  remain unverified.
+                  <strong>Member workspace</strong> — Market updates show source
+                  timestamps. Automatic signals follow configured rules; no
+                  guaranteed outcomes.
                 </>
               )}
             </span>
             <span className="outline-tag">
-              {demo ? "SIMULATED DATA" : "PHASE 1"}
+              {demo ? "SIMULATED DATA" : mt5 ? "MT5 FEED" : "CONNECTED"}
             </span>
           </div>
           <div className="page-heading">
@@ -375,7 +422,7 @@ export default function Terminal({
                       ? "Illustrative price · not live"
                       : quote
                         ? `${fresh ? "Bid" : "Stale bid"} · ${quote.source_name}`
-                        : "Licensed feed required"
+                        : "Waiting for MT5 feed"
                   }
                   icon={<Activity size={17} />}
                   badge={
@@ -447,13 +494,26 @@ export default function Terminal({
                             {fresh
                               ? "SOURCE TIMESTAMP"
                               : "STALE · NOT A CURRENT QUOTE"}{" "}
-                            · {malaysiaTime(quote.observed_at)} MYT
+                            ·{" "}
+                            {mt5
+                              ? new Intl.DateTimeFormat("en-MY", {
+                                  timeZone: "Asia/Kuala_Lumpur",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                  hour12: false,
+                                }).format(new Date(quote.observed_at))
+                              : malaysiaTime(quote.observed_at)}{" "}
+                            MYT
                           </small>
                         )
                       )}
                     </div>
                     <div className="segmented">
-                      {["15M", "1H", "4H", "1D"].map((t) => (
+                      {(demo
+                        ? ["15M", "1H", "4H", "1D"]
+                        : ["M5", "M15", "M30", "H1", "H4", "W1", "MN1"]
+                      ).map((t) => (
                         <button
                           onClick={() => setTimeframe(t)}
                           className={t === timeframe ? "active" : ""}
@@ -466,18 +526,22 @@ export default function Terminal({
                   </div>
                   {demo ? (
                     <Chart timeframe={timeframe} />
+                  ) : mt5 ? (
+                    <MT5Chart data={mt5} fresh={fresh && !mt5Error} />
                   ) : (
                     <div className="chart-empty">
                       <ChartNoAxesCombined />
                       <h3>
                         {quote
-                          ? "Historical chart not connected"
-                          : "Awaiting licensed market data"}
+                          ? "Broker chart unavailable"
+                          : mt5Error
+                            ? "MT5 feed unavailable"
+                            : "Loading MT5 feed"}
                       </h3>
                       <p>
                         {quote
                           ? `Source bid ${quote.bid} / ask ${quote.ask}. No candlestick history is available.`
-                          : "Connect an authorized price provider to display a chart."}
+                          : "Waiting for actual broker prices and completed candles. The display retries automatically."}
                       </p>
                     </div>
                   )}
@@ -488,9 +552,13 @@ export default function Terminal({
                         ? "PANTHER FX · DEMO CHART"
                         : quote
                           ? quote.source_name.toUpperCase()
-                          : "NO PRICE PROVIDER"}
+                          : "MT5 FEED PENDING"}
                     </span>
-                    <span>No exchange connection</span>
+                    <span>
+                      {mt5
+                        ? `${mt5Error ? "Connection interrupted · " : ""}Bid ${mt5.quote.bid.toFixed(2)} / Ask ${mt5.quote.ask.toFixed(2)} · snapshots ~10s`
+                        : "No exchange connection"}
+                    </span>
                   </div>
                 </section>
                 <section className="panel intelligence">
