@@ -208,10 +208,10 @@ test("methods and higher timeframes validate without inventing strategy detectio
   assert.equal(signalSchema.safeParse(setup).success, true);
   for (const changed of [
     { strategy: "OTHER" },
-    { timeframe: "M15" },
+    { timeframe: "M5" },
     { higher_timeframe: "M30" },
     { timeframe: null },
-    { timeframe: "W1", higher_timeframe: "D1" },
+    { timeframe: "W1", higher_timeframe: "W1" },
   ])
     assert.equal(
       signalSchema.safeParse({ ...setup, ...changed }).success,

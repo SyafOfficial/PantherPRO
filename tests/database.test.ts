@@ -1056,7 +1056,7 @@ test("strategy and higher-timeframe metadata survive ingestion and cannot be rew
         ...change,
         strategy: "QM",
         timeframe: "H1",
-        higher_timeframe: "D1",
+        higher_timeframe: "W1",
         event_id: "test-method-alert",
         timestamp: new Date().toISOString(),
       }),
@@ -1119,4 +1119,39 @@ test("retired methods are rejected and administrator operations require aal2", a
   } finally {
     await db.close();
   }
+});
+test("engine setup metadata supports M15 through monthly and rejects M5 and new daily setups", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  const id = await draft(db);
+  await db.query("select public.revise_signal($1,1,$2::jsonb,$3)", [
+    id,
+    JSON.stringify({
+      ...change,
+      strategy: "BOS",
+      timeframe: "M15",
+      higher_timeframe: "MN1",
+    }),
+    "Apply supported engine setup timeframes",
+  ]);
+  const { rows } = await db.query<{
+    timeframe: string;
+    higher_timeframe: string;
+  }>("select timeframe,higher_timeframe from public.signals where id=$1", [id]);
+  assert.equal(rows[0].timeframe, "M15");
+  assert.equal(rows[0].higher_timeframe, "MN1");
+  for (const timeframe of ["M5", "D1"])
+    await assert.rejects(
+      db.query("select public.revise_signal($1,2,$2::jsonb,$3)", [
+        id,
+        JSON.stringify({
+          ...change,
+          strategy: "BOS",
+          timeframe,
+          higher_timeframe: "MN1",
+        }),
+        "Reject unsupported engine timeframe",
+      ]),
+    );
+  await db.close();
 });

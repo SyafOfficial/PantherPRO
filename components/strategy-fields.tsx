@@ -61,7 +61,7 @@ export default function StrategyFields({
           <option value="">Select timeframe</option>
           {TIMEFRAMES.map((t) => (
             <option value={t} key={t}>
-              {t === "W1" ? "W1 · Weekly" : t === "D1" ? "D1 · Daily" : t}
+              {t === "W1" ? "W1 · Weekly" : t === "MN1" ? "MN1 · Monthly" : t}
             </option>
           ))}
         </select>

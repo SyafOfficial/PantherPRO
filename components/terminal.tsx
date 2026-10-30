@@ -566,7 +566,7 @@ export default function Terminal({
                   <p>
                     QM · BOS · CHOCH · Trendline
                     <br />
-                    M30 to Weekly. No daily signal target; setups require
+                    M15 to Monthly. No daily signal target; setups require
                     review.
                   </p>
                 </div>
