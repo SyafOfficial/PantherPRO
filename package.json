@@ -17,7 +17,8 @@
     "webhook:secret": "node --import tsx scripts/generate-webhook-secret.ts",
     "data:import": "node --env-file-if-exists=.env.local --import tsx scripts/import-provider-data.ts",
     "calendar:queue": "node --env-file-if-exists=.env.local --import tsx scripts/queue-calendar-news.ts",
-    "deploy:check": "node --env-file-if-exists=.env.local --import tsx scripts/deploy-check.ts"
+    "deploy:check": "node --env-file-if-exists=.env.local --import tsx scripts/deploy-check.ts",
+    "mt5:inspect": "node --import tsx scripts/inspect-mt5.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",

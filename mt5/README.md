@@ -19,3 +19,9 @@ It does not send data to Render, discover setups, deliver push, or operate while
 DOM is optional and off by default. Missing DOM is `null`; broker DOM is not global spot-gold depth. Tick volume does not establish aggressive buy/sell volume, which remains `null`. `real_volume` may be unavailable or zero on an OTC feed. Confirm broker terms before sending market data to a client-facing service.
 
 The 10-second snapshot timer is not a lossless tick stream. It cannot prove intrainterval TP touches or capture every movement above 50 pips. A later live bridge needs event streaming/sequence and replay rules before reliable notification monitoring.
+
+## First real-terminal validation
+
+The owner compiled this EA in MetaEditor with 0 errors and one Market-version-format warning, attached it to XAUUSD.V, and supplied an exported snapshot on 30 October 2026. The snapshot passed OHLC geometry, strict symbol/schema, candle ordering and completed-bar checks. It contains 300 bars each for M5/M15/M30/H1/H4/W1 and 268 monthly bars. Current tick volume is present; latest bars have no reported real volume. DOM was disabled, so a null book does not prove the broker lacks DOM capability. Aggressive buy/sell volume remains unavailable. The snapshot's broker wall clock is three hours ahead of its UTC export clock; this single observation does not establish historical DST rules. Exporting and uploading a file manually is not live ingestion.
+
+Validate a local file with `npm run mt5:inspect -- path/to/vestrado-snapshot.json`. The validator reports freshness against the current clock; an uploaded historic snapshot is correctly considered stale for live signals. It does not modify the database, connect the feed or publish a signal. Do not commit actual broker snapshot files to the source repository.
