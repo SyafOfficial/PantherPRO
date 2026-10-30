@@ -861,7 +861,11 @@ function SignalCard({
             </h3>
             <p>
               Gold / US Dollar <span>·</span>{" "}
-              {demo ? "Simulated setup" : "Administrator-reviewed signal"}
+              {demo
+                ? "Simulated setup"
+                : s.engine_version
+                  ? "Automatic rules signal · observed feed"
+                  : "Administrator-reviewed signal"}
             </p>
           </div>
         </div>
@@ -888,8 +892,8 @@ function SignalCard({
       </div>
       <div className="signal-levels">
         {[
-          ["ENTRY", s.entry],
-          ["STOP LOSS", s.stop_loss],
+          [s.engine_version ? "ENTRY ZONE" : "ENTRY", s.entry],
+          [s.engine_version ? "M5 CLOSE SL" : "STOP LOSS", s.stop_loss],
           ["TAKE PROFIT 1", s.tp1],
           ["TAKE PROFIT 2", s.tp2],
           ["TAKE PROFIT 3", s.tp3],
@@ -900,10 +904,12 @@ function SignalCard({
               {String(label)}
             </span>
             <strong>
-              {Number(value).toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              {i === 0 && s.engine_version
+                ? `${Number(s.entry_low).toFixed(2)} – ${Number(s.entry_high).toFixed(2)}`
+                : Number(value).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
             </strong>
           </div>
         ))}

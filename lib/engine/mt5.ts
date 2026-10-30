@@ -84,6 +84,7 @@ export const mt5SnapshotSchema = z
         "Invalid tick or spread",
       ),
     series: z.array(series).length(7),
+    ask_m5: z.array(bar).max(100).optional(),
     order_book: z
       .object({
         scope: z.literal("broker_reported_only"),
@@ -116,6 +117,18 @@ export const mt5SnapshotSchema = z
       c.addIssue({
         code: "custom",
         message: "Point and digit precision disagree",
+      });
+    const asks = s.ask_m5 ?? [];
+    if (
+      asks.some(
+        (b, i) =>
+          b.opened_at_server_raw + 300 > s.server_time_raw ||
+          (i > 0 && b.opened_at_server_raw <= asks[i - 1].opened_at_server_raw),
+      )
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Ask M5 history must be completed and chronological",
       });
     for (const v of s.series)
       for (const b of v.candles)

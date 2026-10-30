@@ -35,9 +35,23 @@ export async function GET() {
       { status: "not_ready", checks: { configuration: true, database: false } },
       { status: 503, headers },
     );
+  const engine = await serviceDb()
+    .from("automatic_engine_policy")
+    .select("enabled,version,last_snapshot_processed")
+    .eq("singleton", true)
+    .maybeSingle();
   return Response.json(
     {
       status: "ready",
+      automatic_engine:
+        engine.error || !engine.data
+          ? { installed: false }
+          : {
+              installed: true,
+              publication_enabled: engine.data.enabled,
+              version: engine.data.version,
+              last_snapshot_processed: engine.data.last_snapshot_processed,
+            },
       checks: { configuration: true, database: true },
       external_delivery: "unverified",
       market_feed: "disconnected",

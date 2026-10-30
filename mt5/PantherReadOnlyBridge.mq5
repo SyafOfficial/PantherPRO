@@ -1,6 +1,6 @@
 // Panther FX read-only MT5 exporter. No order placement or position changes.
 #property strict
-#property version "0.10"
+#property version "1.100"
 #property description "Exports XAUUSD.V market snapshots locally; does not trade or send account details."
 input string BridgeSymbol="XAUUSD.V";
 input int ExportEverySeconds=10;
@@ -8,6 +8,32 @@ input int HistoryBars=300;
 input bool IncludeAvailableDOM=false;
 string OutputName="PantherFX\\vestrado-snapshot.json";
 bool domSubscribed=false;
+MqlRates CachedAsk;
+long CachedAskOpen=0;
+bool AskReady=false;
+void UpdateAskM5(){
+ MqlRates bars[];
+ if(CopyRates(BridgeSymbol,PERIOD_M5,1,1,bars)!=1)return;
+ long opened=(long)bars[0].time;
+ if(AskReady && opened==CachedAskOpen)return;
+ AskReady=false;
+ MqlTick ticks[];
+ int count=CopyTicksRange(BridgeSymbol,ticks,COPY_TICKS_ALL,(ulong)opened*1000,(ulong)(opened+300)*1000-1);
+ if(count<=0 || count>200000)return;
+ int accepted=0;
+ long first=0,last=0;
+ for(int i=0;i<count;i++){
+  if(ticks[i].ask<=0 || ticks[i].bid<=0 || ticks[i].ask<ticks[i].bid)continue;
+  if(accepted==0){CachedAsk.open=ticks[i].ask;CachedAsk.high=ticks[i].ask;CachedAsk.low=ticks[i].ask;first=ticks[i].time;}
+  CachedAsk.high=MathMax(CachedAsk.high,ticks[i].ask);
+  CachedAsk.low=MathMin(CachedAsk.low,ticks[i].ask);
+  CachedAsk.close=ticks[i].ask;last=ticks[i].time;accepted++;
+ }
+ // Sparse/incomplete terminal history is withheld instead of synthesizing ask OHLC.
+ if(accepted==0 || first>opened+60 || last<opened+240)return;
+ CachedAsk.time=(datetime)opened;CachedAsk.tick_volume=accepted;
+ CachedAskOpen=opened;AskReady=true;
+}
 ENUM_TIMEFRAMES Frames[]={PERIOD_M5,PERIOD_M15,PERIOD_M30,PERIOD_H1,PERIOD_H4,PERIOD_W1,PERIOD_MN1};
 string FrameNames[]={"M5","M15","M30","H1","H4","W1","MN1"};
 string Esc(string value){StringReplace(value,"\\","\\\\");StringReplace(value,"\"","\\\"");StringReplace(value,"\r","\\r");StringReplace(value,"\n","\\n");return value;}
@@ -32,6 +58,9 @@ void ExportSnapshot(){
   }
   data+="]}";
  }
+ UpdateAskM5();
+ data+="],\"ask_m5\":[";
+ if(AskReady){data+="{\"opened_at_server_raw\":"+Whole(CachedAskOpen)+",\"open\":"+Num(CachedAsk.open,digits)+",\"high\":"+Num(CachedAsk.high,digits)+",\"low\":"+Num(CachedAsk.low,digits)+",\"close\":"+Num(CachedAsk.close,digits)+",\"tick_volume\":"+Whole(CachedAsk.tick_volume)+",\"real_volume\":null,\"spread_points\":0}";}
  data+="],\"order_book\":";
  MqlBookInfo book[];
  if(domSubscribed && MarketBookGet(BridgeSymbol,book) && ArraySize(book)>0){

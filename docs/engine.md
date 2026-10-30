@@ -47,3 +47,37 @@ The prototype defines a swing high/low as a strict extremum with two completed c
 M15/M30/H1/H4/W1/MN1 are analysed independently. M5 is not a setup timeframe. QM, trendline, zone discovery, multi-timeframe alignment and stateful pullback/retest tracking remain unimplemented in this scanner. It does not label missing order-flow evidence as bullish or bearish. No successful shadow scan proves accuracy or publishes a trading signal.
 
 The owner explicitly confirmed 50 pips = 5.00 price on 30 October 2026. The engine configuration locks pip size 0.10, maximum zone width 8.00 and SL buffer 3.00 outside the zone. Lot sizes are not inputs. Auto-publication remains disabled because the scanner-to-candidate-to-monitor integration is not complete.
+
+## Automatic policy v1 (migration 011; disabled by default)
+
+This section supersedes the earlier prototype-only status for the new `lib/engine/automatic.ts` path. `engine:scan` remains a read-only structure diagnostic, not the publication worker. The persistent existing `push:worker` now runs an engine cycle before processing its push queue; no third paid service is required. Missing migration 011 leaves current push delivery working and does not enable trading signals.
+
+Migration 011 adds an initially disabled, versioned policy and private monitoring state. A signed-in administrator at AAL2 enables it in `/admin` using **Enable automatic signals**. That approval authorizes version `vestrado-structure-v1`; each qualified signal is then published without manual entry or individual approval. **Pause new automatic signals** pauses new publication while monitoring already active automatic signals continues. A worker failure cannot prevent previously queued push delivery. Raw broker data is not exposed through a new public endpoint.
+
+### Initial deterministic conventions
+
+These are explicit implementation choices for this first ruleset, not claims of proven accuracy. Strict pivots use two completed candles on each side. All methods are evaluated on M15/M30/H1/H4/W1/MN1. For each frame the scanner revisits the most recent 12 completed setup bars while awaiting a fresh M5 retest; the oldest available confirmed pivots still require their right-hand confirmation before the candidate breakout. The adjacent higher frame must have matching HH/HL or LH/LL direction; monthly has no higher frame. Ranging or missing higher context blocks lower-frame publication.
+
+BOS/CHOCH use the first close through a confirmed pivot with an established prior directional structure. QM uses a left shoulder/neckline/higher head and first close below neckline, or the mirrored lower-head BUY pattern; the M5 retest holds the shoulder. Trendline uses two directional confirmed anchors, a third completed setup-candle touch/rejection within 0.2 price of the projected line, and a later M5 retest of its projected level. These rules may differ from discretionary drawings and need forward/backtest validation.
+
+The latest completed M5 candle must touch and close on the valid side of the setup level. Its full high/low range defines the entry zone. The live executable-side observed quote (BUY ask / SELL bid) must still be inside it; prices outside are not chased. The entire zone is at most 8.00 price wide. SL is 3.00 beyond its invalidation edge. TP3 is the nearest confirmed setup-frame opposing pivot ahead of the entire zone. TP1 and TP2 are the nearest two distinct confirmed opposing M5/M15/M30 pivots between the zone and TP3. Missing roadblocks means no publication. No fixed-R target is invented.
+
+All chronology/comparison arithmetic is in broker wall-time coordinates, without converting historical bars using today's UTC offset. Temporary ISO-shaped values inside the pure rules validator are a coordinate representation only; they are not persisted as historical UTC. External `confirmedAt` records the actual snapshot export UTC when the completed confirmation was observed. Evidence retains original broker breakout/M5 times. Monthly bars keep the broker calendar boundaries.
+
+Tick activity is reported as the breakout bar's tick-volume/median-prior-20 ratio when available. It is context, not a directional aggressive-flow proxy or a mandatory high-volume exclusion. Missing DOM, transaction-side imbalance and news data remain unavailable. Signals include an explicit news-unavailable note. No future news figures, global gold depth or model confidence are invented.
+
+### Event and lifecycle semantics
+
+A database transaction checks service role, policy, snapshot identity/freshness, entry zone, price order and SL buffer, then writes the signal, monitoring state, audit and initial push event atomically. Broker symbol + method + frame + anchor + breakout identify the setup, preventing the same pattern from republishing on every snapshot. Overlapping hypotheses on the same frame/direction/confirmation are reduced by QM → CHOCH → BOS → trendline precedence. Published automatic prices are frozen. A new setup can publish independently; there is no daily signal quota.
+
+Monitoring uses BUY bid or SELL ask from actually received snapshots. A close strictly beyond SL on a completed exit-side M5 candle invalidates the setup; equality/wicks do not. A hard broker stop can execute on a wick and does not follow this app lifecycle. Actual ask M5 is required for SELL publication and invalidation; no ask candle is manufactured from current spread.
+
+Observed TP levels create `signal.tp1`, `signal.tp2`, `signal.tp3` once each. Strictly more than 5.00 price beyond the conservative entry-zone edge emits `signal.break_even` once with the fixed instruction **Close Partial and SET Break Even now!**. The broker SL is not moved. SL/TP3 close the app signal, with no win/loss or profit outcome inferred. A gap of over 90 seconds between processed snapshots or missing completed exit-side M5 evidence pauses observation and sends an update rather than guessing unseen touches. The snapshot path remains sampled: brief intrainterval TP/partial touches can be missed. This is not a lossless tick execution simulator.
+
+### Activation and real-device verification
+
+1. Apply only migration `202610300011_automatic_engine.sql` to the existing project already at 010. Never rerun previous setup/activation files.
+2. Deploy the latest engine branch to the web service and existing push worker. New code remains compatible with migration 011 being absent and leaves publication off until an admin enables it.
+3. Update the MT5 EA from `PantherReadOnlyBridge.mq5` v1.100, compile in MetaEditor and verify the new snapshot includes `ask_m5` when broker tick history is available. The update reconstructs the latest completed ask M5 using `CopyTicksRange`; empty/sparse tick history is withheld. This updated MQL code still needs a real terminal compile/test.
+4. Verify uploader receipts continue, then use the MFA-protected admin toggle. `/api/ready` and `/admin` report policy status and last worker-processed snapshot. The worker operates without extra environment variables beyond its existing six.
+5. Observe a genuine qualified setup or forward-test fixtures in an isolated project. Check automatic source label, entry range, fixed prices, atomic audit/outbox and actual phone delivery. Never publish a fictitious setup as a live trading call. The trading strategy has not been performance validated by unit tests.

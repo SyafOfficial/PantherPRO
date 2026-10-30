@@ -8,7 +8,7 @@ export const VESTRADO_RULES = Object.freeze({
   partialPips: 50 as const,
   stopConfirmation: "M5_CLOSE" as const,
   allowedSetupFrames: ["M15", "M30", "H1", "H4", "W1", "MN1"] as const,
-  autoPublish: false,
+  autoPublish: false, // Default only; MFA-approved database policy controls live publication.
 });
 export function priceDistance(pips: number) {
   if (!Number.isFinite(pips) || pips < 0)

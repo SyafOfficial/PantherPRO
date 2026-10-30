@@ -1,3 +1,4 @@
+import { automaticEngineCycle } from "../lib/engine/service";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { safePushEndpoint, notificationPayload } from "../lib/push";
@@ -54,6 +55,22 @@ async function finish(item: Delivery, state: string, code?: string) {
     console.warn(JSON.stringify({ deliveryId: item.id, state: "lease_lost" }));
 }
 async function cycle() {
+  try {
+    const engine = await automaticEngineCycle(db);
+    if (engine.published || engine.events)
+      console.info(
+        JSON.stringify({
+          component: "automatic_engine",
+          published: engine.published ?? 0,
+          events: engine.events ?? 0,
+        }),
+      );
+  } catch {
+    // A scanner failure must not stop already queued push deliveries.
+    console.error(
+      "Automatic engine cycle rejected; existing push delivery continues.",
+    );
+  }
   await rpc("prepare_push_deliveries", { batch_size: 20 });
   // Small batches keep serial network calls below the two-minute lease.
   const deliveries = (await rpc("claim_push_deliveries", {

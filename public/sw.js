@@ -135,7 +135,7 @@ self.addEventListener("push", (event) => {
         (payload.eventType === "signal.active"
           ? [
               "New signal · Panther FX",
-              "A reviewed signal is now available. Open your terminal to view it.",
+              "A new signal is available. Open your terminal to view it.",
             ]
           : payload.eventType === "signal.closed"
             ? [
@@ -146,7 +146,7 @@ self.addEventListener("push", (event) => {
                 payload.eventType === "signal.stop_loss"
               ? [
                   "Signal updated · Panther FX",
-                  "A reviewed signal was modified. Open your terminal for details.",
+                  "A signal update is available. Open your terminal for details.",
                 ]
               : [
                   "Panther FX intelligence",

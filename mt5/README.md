@@ -29,3 +29,9 @@ Validate a local file with `npm run mt5:inspect -- path/to/vestrado-snapshot.jso
 ## Transport uploader
 
 `Start-PantherBridge.ps1` reads the local file and posts signed snapshots to `https://pantherpro.onrender.com/api/bridge/mt5`. It needs migrations 009/010 and server settings documented in `docs/engine.md`; the live app has not yet been switched to this branch. The script prompts for an independent bridge secret privately; never use the MT5 password or Supabase service-role key. It does not execute trades or send account data. Signing is tested on the TypeScript side; Windows PowerShell execution needs the owner's terminal test. Keep the PC, MT5 and uploader running. Free Render instances may sleep and cause upload timeouts; continuous operation needs a suitable always-on host.
+
+## EA v1.100 ask-side M5 extension
+
+The updated EA requests the latest completed M5 tick interval using MT5 `CopyTicksRange` and reconstructs an ask OHLC candle only from positive valid bid/ask ticks. It withholds empty/sparse history (first tick more than 60 seconds after the bar start or last tick more than 60 seconds before its end) and retries unavailable history. The result is `ask_m5`, cached for that completed bar. This supports SELL close-based invalidation without applying a guessed spread to historical bid candles. Tick count here describes returned tick records, not aggressive buy/sell volume.
+
+The original v0.10 exporter was compiled/tested by the owner; **v1.100 still needs compilation and runtime validation in MetaEditor**. Recompile, replace the attached EA, and verify uploader acceptance plus an uploaded snapshot with ask evidence before assuming SELL monitoring is available. No DLLs, order functions or account credentials were added.

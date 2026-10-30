@@ -6,6 +6,7 @@ import StrategyFields from "@/components/strategy-fields";
 import SignalEditor from "@/components/signal-editor";
 import ObservationControl from "@/components/observation-control";
 import {
+  setAutomaticEngine,
   createSignal,
   transitionSignal,
   changeMemberRole,
@@ -69,6 +70,15 @@ export default async function Admin({
         { data: [], error: null },
         { data: [], error: null },
       ];
+  const enginePolicy = db
+    ? await db
+        .from("automatic_engine_policy")
+        .select(
+          "enabled,version,updated_at,last_snapshot_processed,last_result",
+        )
+        .eq("singleton", true)
+        .single()
+    : null;
   const allowedQuotes = (quotes.data ?? []).filter((q) =>
     (providers.data ?? []).some(
       (p) => p.id === q.provider_id && p.enabled && p.reconciliation_allowed,
@@ -114,6 +124,61 @@ export default async function Admin({
           policies.
         </div>
       )}
+      <section className="panel content-panel">
+        <div className="eyebrow">AUTOMATIC MT5 SIGNALS</div>
+        <h2>
+          {enginePolicy?.data?.enabled
+            ? "Automatic publication enabled"
+            : "Automatic publication paused"}
+        </h2>
+        <p>
+          QM, BOS, CHOCH and trendline rules on M15–MN1. A completed M5 retest,
+          aligned higher context and three structural targets are required.
+          Entry zone ≤80 pips; SL buffer 30 pips outside the zone. No daily
+          signal quota.
+        </p>
+        <p>
+          Signals use observed Vestrado prices, not broker fills. M5-close
+          invalidation can differ from a hard MT5 stop. Missing or stale data
+          suppresses signals; SELL requires actual ask M5 candles. This initial
+          ruleset has no verified trading performance.
+        </p>
+        {enginePolicy?.data && (
+          <p>
+            Last snapshot processed by worker:{" "}
+            {enginePolicy.data.last_snapshot_processed
+              ? new Date(
+                  enginePolicy.data.last_snapshot_processed,
+                ).toLocaleString("en-MY", { timeZone: "Asia/Kuala_Lumpur" }) +
+                " MYT"
+              : "Waiting for worker and fresh MT5 data"}
+          </p>
+        )}
+        {enginePolicy?.data ? (
+          <form action={setAutomaticEngine}>
+            <input
+              type="hidden"
+              name="enabled"
+              value={enginePolicy.data.enabled ? "false" : "true"}
+            />
+            <button className="primary-button" disabled={demo}>
+              {enginePolicy.data.enabled
+                ? "Pause new automatic signals"
+                : "Enable automatic signals"}
+            </button>
+          </form>
+        ) : (
+          <p>
+            Automatic engine migration is not installed. Existing manual signals
+            and notifications remain available.
+          </p>
+        )}
+        <small>
+          Already active automatic signals continue observation when new
+          publication is paused. The persistent worker runs the engine; no
+          manual signal form is required.
+        </small>
+      </section>
       <div className="admin-grid">
         <div>
           <section className="panel content-panel">

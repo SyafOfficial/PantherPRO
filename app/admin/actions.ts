@@ -124,3 +124,11 @@ export async function startObservation(form: FormData) {
   });
   result(Boolean(error));
 }
+
+export async function setAutomaticEngine(form: FormData) {
+  const db = await admin();
+  const { error } = await db.rpc("set_automatic_engine", {
+    enabled_value: form.get("enabled") === "true",
+  });
+  result(Boolean(error));
+}

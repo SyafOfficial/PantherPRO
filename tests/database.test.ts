@@ -1227,3 +1227,307 @@ test("MT5 snapshots are service-only, private, ordered, replay-safe and rate-lim
   assert.equal(count.rows[0].total, 1);
   await db.close();
 });
+async function autoFixture(db: PGlite, options: { ask?: boolean } = {}) {
+  const date = new Date(Math.floor(Date.now() / 1000) * 1000 - 10000),
+    server = Math.floor(date.getTime() / 1000) + 10800;
+  const stamp = server - 599;
+  const candle = (open: number, close = 100) => ({
+    opened_at_server_raw: open,
+    open: 100,
+    high: 110,
+    low: 90,
+    close,
+    tick_volume: 50,
+    real_volume: null,
+    spread_points: 20,
+  });
+  const feed = (offset = 0, bid = 100, close = 100) => ({
+    schema: "panther.mt5.snapshot.v1",
+    provider: "Vestrado MT5",
+    symbol: "XAUUSD.V",
+    bar_time_basis: "broker_server",
+    execution_enabled: false,
+    exported_at_utc: new Date(date.getTime() + offset * 1000)
+      .toISOString()
+      .slice(0, 19)
+      .replace(/-/g, ".")
+      .replace("T", " "),
+    server_time_raw: server + offset,
+    quote: {
+      bid,
+      ask: bid + 0.2,
+      last_tick_time_raw: server + offset,
+      last_tick_time_msc_raw: (server + offset) * 1000,
+    },
+    series: [
+      {
+        timeframe: "M5",
+        candles: [candle(offset ? stamp + 300 : stamp, close)],
+      },
+    ],
+    ...(options.ask
+      ? { ask_m5: [candle(offset ? stamp + 300 : stamp, close)] }
+      : {}),
+  });
+  const put = async (offset = 0, bid = 100, close = 100) => {
+    const snapshot = feed(offset, bid, close),
+      time = new Date(date.getTime() + offset * 1000).toISOString();
+    await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(snapshot),
+      String(offset).padStart(64, "f"),
+      time,
+    ]);
+    return time;
+  };
+  const plan = {
+    version: "vestrado-structure-v1",
+    provider: "Vestrado MT5",
+    sourceEventId: "1".repeat(64),
+    method: "BOS",
+    timeframe: "M15",
+    higherTimeframe: "M30",
+    direction: "BUY",
+    entry: 100.2,
+    zoneLow: 99,
+    zoneHigh: 101,
+    stop: 96,
+    targets: [105, 110, 120],
+    reason:
+      "Automatic fixture with structural targets and completed M5 confirmation.",
+    confirmationOpenedServer: stamp,
+    breakoutOpenedServer: stamp - 900,
+  };
+  return { date, plan, put };
+}
+test("automatic policy requires MFA admin; engine publication and outbox are atomic and deduplicated", async () => {
+  const db = await setup();
+  await as(db, "public");
+  await assert.rejects(db.query("select public.set_automatic_engine(true)"));
+  await as(db, "admin");
+  await db.query("select set_config('request.jwt.claim.aal','aal1',false)");
+  await assert.rejects(db.query("select public.set_automatic_engine(true)"));
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const f = await autoFixture(db),
+    time = await f.put();
+  const apply = () =>
+    db.query<{ result: { published: number } }>(
+      "select public.apply_automatic_engine($1,$2) result",
+      [time, JSON.stringify([f.plan])],
+    );
+  assert.equal((await apply()).rows[0].result.published, 1);
+  assert.equal((await apply()).rows[0].result.published, 0);
+  await as(db, "admin");
+  const rows = await db.query<{
+    status: string;
+    source: string;
+    entry_low: number;
+  }>("select status,source,entry_low from public.signals where source='mt5'");
+  assert.equal(rows.rows[0].status, "active");
+  assert.equal(rows.rows[0].source, "mt5");
+  const out = await db.query<{ total: number }>(
+    "select count(*)::integer total from public.notification_outbox where event_type='signal.active'",
+  );
+  assert.equal(out.rows[0].total, 1);
+  await as(db, "public");
+  await assert.rejects(
+    db.query("select public.apply_automatic_engine($1,$2)", [time, "[]"]),
+  );
+  await db.close();
+});
+test("automatic plans fail closed on wrong SL buffer and SELL without ask history", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const f = await autoFixture(db),
+    time = await f.put();
+  await assert.rejects(
+    db.query("select public.apply_automatic_engine($1,$2)", [
+      time,
+      JSON.stringify([{ ...f.plan, stop: 95 }]),
+    ]),
+  );
+  await assert.rejects(
+    db.query("select public.apply_automatic_engine($1,$2)", [
+      time,
+      JSON.stringify([
+        {
+          ...f.plan,
+          direction: "SELL",
+          entry: 100,
+          stop: 104,
+          targets: [95, 90, 80],
+        },
+      ]),
+    ]),
+  );
+  await as(db, "admin");
+  const count = await db.query<{ total: number }>(
+    "select count(*)::integer total from public.signals",
+  );
+  assert.equal(count.rows[0].total, 0);
+  await db.close();
+});
+test("automatic engine observes M5-close stop and never wick-only invalidation", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const f = await autoFixture(db),
+    first = await f.put();
+  await db.query("select public.apply_automatic_engine($1,$2)", [
+    first,
+    JSON.stringify([f.plan]),
+  ]);
+  const next = await f.put(1, 100, 96);
+  await db.query("select public.apply_automatic_engine($1,$2)", [next, "[]"]);
+  await as(db, "admin");
+  const still = await db.query<{ status: string }>(
+    "select status from public.signals",
+  );
+  assert.equal(still.rows[0].status, "active");
+  // Use an independent plan lifecycle to test a close strictly beyond SL on that first next candle.
+  await db.close();
+  const db2 = await setup();
+  await as(db2, "admin");
+  await db2.query("select public.set_automatic_engine(true)");
+  await as(db2, "service_role");
+  const g = await autoFixture(db2),
+    initial = await g.put();
+  await db2.query("select public.apply_automatic_engine($1,$2)", [
+    initial,
+    JSON.stringify([g.plan]),
+  ]);
+  const invalid = await g.put(1, 95, 95);
+  await db2.query("select public.apply_automatic_engine($1,$2)", [
+    invalid,
+    "[]",
+  ]);
+  await as(db2, "admin");
+  const stopped = await db2.query<{ status: string; outcome: string | null }>(
+    "select status,outcome from public.signals",
+  );
+  assert.equal(stopped.rows[0].status, "closed");
+  assert.equal(stopped.rows[0].outcome, null);
+  const out = await db2.query<{ total: number }>(
+    "select count(*)::integer total from public.notification_outbox where event_type='signal.stop_hit'",
+  );
+  assert.equal(out.rows[0].total, 1);
+  await db2.close();
+});
+test("automatic targets and partial instruction create each event once and never claim broker profit", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const f = await autoFixture(db),
+    time = await f.put();
+  await db.query("select public.apply_automatic_engine($1,$2)", [
+    time,
+    JSON.stringify([f.plan]),
+  ]);
+  const one = await f.put(1, 106.1);
+  await db.query("select public.apply_automatic_engine($1,$2)", [one, "[]"]);
+  await db.query("select public.apply_automatic_engine($1,$2)", [one, "[]"]);
+  const all = await f.put(2, 121);
+  await db.query("select public.apply_automatic_engine($1,$2)", [all, "[]"]);
+  await as(db, "admin");
+  const events = await db.query<{ event_type: string }>(
+    "select event_type from public.notification_outbox where event_type<>'signal.active' order by event_type",
+  );
+  assert.deepEqual(
+    events.rows.map((e) => e.event_type),
+    ["signal.break_even", "signal.tp1", "signal.tp2", "signal.tp3"],
+  );
+  const result = await db.query<{ status: string; outcome: string | null }>(
+    "select status,outcome from public.signals",
+  );
+  assert.equal(result.rows[0].status, "closed");
+  assert.equal(result.rows[0].outcome, null);
+  await db.close();
+});
+test("paused new publication preserves existing monitoring; data gaps suppress guessed outcomes", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const f = await autoFixture(db),
+    first = await f.put();
+  await db.query("select public.apply_automatic_engine($1,$2)", [
+    first,
+    JSON.stringify([f.plan]),
+  ]);
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(false)");
+  await as(db, "service_role");
+  const next = await f.put(1, 106.1);
+  await db.query("select public.apply_automatic_engine($1,$2)", [
+    next,
+    JSON.stringify([{ ...f.plan, sourceEventId: "2".repeat(64) }]),
+  ]);
+  await as(db, "admin");
+  const signals = await db.query<{ total: number }>(
+    "select count(*)::integer total from public.signals",
+  );
+  assert.equal(signals.rows[0].total, 1);
+  const target = await db.query<{ total: number }>(
+    "select count(*)::integer total from public.notification_outbox where event_type='signal.tp1'",
+  );
+  assert.equal(target.rows[0].total, 1);
+  await db.close();
+  const db2 = await setup();
+  await as(db2, "admin");
+  await db2.query("select public.set_automatic_engine(true)");
+  await as(db2, "service_role");
+  const g = await autoFixture(db2),
+    time = await g.put();
+  await db2.query("select public.apply_automatic_engine($1,$2)", [
+    time,
+    JSON.stringify([g.plan]),
+  ]);
+  await db2.query(
+    "update public.automatic_engine_tracking set last_snapshot=last_snapshot-interval '2 minutes'",
+  );
+  const gap = await g.put(1, 121);
+  await db2.query("select public.apply_automatic_engine($1,$2)", [gap, "[]"]);
+  await as(db2, "admin");
+  const row = await db2.query<{
+    reconciliation_state: string;
+    outcome: string | null;
+    tp1_hit_at: string | null;
+  }>("select reconciliation_state,outcome,tp1_hit_at from public.signals");
+  assert.equal(row.rows[0].reconciliation_state, "gap");
+  assert.equal(row.rows[0].outcome, null);
+  assert.equal(row.rows[0].tp1_hit_at, null);
+  await db2.close();
+});
+test("SELL automatic invalidation uses ask close above SL, never bid close", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const f = await autoFixture(db, { ask: true }),
+    time = await f.put();
+  const sell = {
+    ...f.plan,
+    direction: "SELL",
+    entry: 100,
+    stop: 104,
+    targets: [95, 90, 80],
+  };
+  await db.query("select public.apply_automatic_engine($1,$2)", [
+    time,
+    JSON.stringify([sell]),
+  ]);
+  const next = await f.put(1, 100, 105);
+  await db.query("select public.apply_automatic_engine($1,$2)", [next, "[]"]);
+  await as(db, "admin");
+  const row = await db.query<{ status: string; outcome: string | null }>(
+    "select status,outcome from public.signals",
+  );
+  assert.equal(row.rows[0].status, "closed");
+  assert.equal(row.rows[0].outcome, null);
+  await db.close();
+});
