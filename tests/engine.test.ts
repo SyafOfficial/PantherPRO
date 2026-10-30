@@ -334,3 +334,13 @@ test("M5 and daily are not setup frames; liquidity is not fabricated from missin
     );
   assert.equal("liquidity" in buildCandidate(fixture(), now), false);
 });
+import { VESTRADO_RULES, priceDistance } from "../lib/engine/config";
+test("owner-confirmed pip distances are independent of client lots and do not enable automatic publication", () => {
+  assert.equal(priceDistance(50), 5);
+  assert.equal(priceDistance(VESTRADO_RULES.maxZonePips), 8);
+  assert.equal(priceDistance(VESTRADO_RULES.slBufferPips), 3);
+  assert.equal(VESTRADO_RULES.stopConfirmation, "M5_CLOSE");
+  assert.equal(VESTRADO_RULES.autoPublish, false);
+  assert.throws(() => priceDistance(NaN));
+  assert.throws(() => priceDistance(-1));
+});

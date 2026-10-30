@@ -132,7 +132,6 @@ export function scanMt5Structure(raw: unknown, now: number, strength = 2) {
       "Detect and validate entry zones and pullbacks",
       "Align higher-timeframe context",
       "Select structural targets",
-      "Confirm broker pip convention",
       "Normalize historical session times",
       "Persist and review candidates",
       "Connect monitoring events transactionally to notification outbox",
