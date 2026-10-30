@@ -1155,3 +1155,75 @@ test("engine setup metadata supports M15 through monthly and rejects M5 and new 
     );
   await db.close();
 });
+test("MT5 snapshots are service-only, private, ordered, replay-safe and rate-limited", async () => {
+  const db = await setup();
+  const time = new Date(Math.floor(Date.now() / 1000) * 1000 - 20000);
+  const body = (date: Date) => ({
+    schema: "panther.mt5.snapshot.v1",
+    provider: "Vestrado MT5",
+    symbol: "XAUUSD.V",
+    bar_time_basis: "broker_server",
+    execution_enabled: false,
+    exported_at_utc: date
+      .toISOString()
+      .slice(0, 19)
+      .replace(/-/g, ".")
+      .replace("T", " "),
+  });
+  await as(db, "public");
+  await assert.rejects(
+    db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(body(time)),
+      "a".repeat(64),
+      time.toISOString(),
+    ]),
+  );
+  await assert.rejects(db.query("select * from public.mt5_bridge_latest"));
+  await as(db, "service_role");
+  const first = await db.query<{ result: { duplicate: boolean } }>(
+    "select public.ingest_mt5_snapshot($1,$2,$3) result",
+    [JSON.stringify(body(time)), "a".repeat(64), time.toISOString()],
+  );
+  assert.equal(first.rows[0].result.duplicate, false);
+  const replay = await db.query<{ result: { duplicate: boolean } }>(
+    "select public.ingest_mt5_snapshot($1,$2,$3) result",
+    [JSON.stringify(body(time)), "a".repeat(64), time.toISOString()],
+  );
+  assert.equal(replay.rows[0].result.duplicate, true);
+  await assert.rejects(
+    db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(body(time)),
+      "b".repeat(64),
+      time.toISOString(),
+    ]),
+  );
+  const older = new Date(time.getTime() - 1000);
+  await assert.rejects(
+    db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(body(older)),
+      "b".repeat(64),
+      older.toISOString(),
+    ]),
+  );
+  for (let i = 1; i < 12; i++) {
+    const d = new Date(time.getTime() + i * 1000);
+    await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(body(d)),
+      String(i).padStart(64, "a"),
+      d.toISOString(),
+    ]);
+  }
+  const excess = new Date(time.getTime() + 12000);
+  await assert.rejects(
+    db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(body(excess)),
+      "c".repeat(64),
+      excess.toISOString(),
+    ]),
+  );
+  const count = await db.query<{ total: number }>(
+    "select count(*)::integer total from public.mt5_bridge_latest",
+  );
+  assert.equal(count.rows[0].total, 1);
+  await db.close();
+});

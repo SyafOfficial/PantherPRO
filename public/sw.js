@@ -93,8 +93,46 @@ self.addEventListener("push", (event) => {
       )
         return;
       if (!(await firstDelivery(payload.id))) return;
+      const progressCopies = new Map([
+        [
+          "signal.tp1",
+          [
+            "TP1 reached · Panther FX",
+            "TP1 was reached on the observed feed. Open your terminal for details.",
+          ],
+        ],
+        [
+          "signal.tp2",
+          [
+            "TP2 reached · Panther FX",
+            "TP2 was reached on the observed feed. Open your terminal for details.",
+          ],
+        ],
+        [
+          "signal.tp3",
+          [
+            "TP3 reached · Panther FX",
+            "TP3 was reached on the observed feed. Open your terminal for details.",
+          ],
+        ],
+        [
+          "signal.stop_hit",
+          [
+            "SL confirmed · Panther FX",
+            "M5 closed beyond the signal stop level. Open your terminal for details.",
+          ],
+        ],
+        [
+          "signal.break_even",
+          [
+            "Trade management · Panther FX",
+            "Close Partial and SET Break Even now!",
+          ],
+        ],
+      ]);
       const copy =
-        payload.eventType === "signal.active"
+        progressCopies.get(payload.eventType) ??
+        (payload.eventType === "signal.active"
           ? [
               "New signal · Panther FX",
               "A reviewed signal is now available. Open your terminal to view it.",
@@ -113,7 +151,7 @@ self.addEventListener("push", (event) => {
               : [
                   "Panther FX intelligence",
                   "A new update is available. Open your terminal to review it.",
-                ];
+                ]);
       try {
         await self.registration.showNotification(copy[0], {
           body: copy[1],

@@ -210,6 +210,31 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
   await expect.poll(async () => (await notifications()).length).toBe(1);
   expect((await notifications())[0].title).toBe("New signal · Panther FX");
   expect((await notifications())[0].body).not.toContain("2340");
+  for (const [index, eventType, expectedTitle] of [
+    [80, "signal.tp1", "TP1 reached · Panther FX"],
+    [81, "signal.tp2", "TP2 reached · Panther FX"],
+    [82, "signal.tp3", "TP3 reached · Panther FX"],
+    [83, "signal.stop_hit", "SL confirmed · Panther FX"],
+    [84, "signal.break_even", "Trade management · Panther FX"],
+  ] as const) {
+    await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.ready;
+      for (const notification of await registration.getNotifications())
+        notification.close();
+    });
+    await send(
+      `00000000-0000-4000-8000-0000000000${index}`,
+      "/?view=Signals",
+      eventType,
+    );
+    await expect
+      .poll(async () => (await notifications())[0]?.title)
+      .toBe(expectedTitle);
+    if (eventType === "signal.break_even")
+      expect((await notifications())[0].body).toBe(
+        "Close Partial and SET Break Even now!",
+      );
+  }
 });
 
 test("calendar shows an honest empty state and account settings fit a phone", async ({
