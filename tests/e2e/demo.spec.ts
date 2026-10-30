@@ -103,6 +103,8 @@ test("PWA manifest, icons and health accurately describe readiness", async ({
   expect((await request.get("/api/market/mt5?timeframe=H1")).status()).toBe(
     401,
   );
+  expect((await request.get("/api/context/calendar")).status()).toBe(401);
+  expect((await request.get("/api/context/news")).status()).toBe(401);
   expect(status.mode).toBe("demo");
   expect(status.integrations.push).toBe("disconnected");
   const manifest = await (await request.get("/manifest.webmanifest")).json();

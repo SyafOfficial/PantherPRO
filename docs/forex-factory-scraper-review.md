@@ -23,6 +23,12 @@ at inspected commit `acc3aad102304724f0935ba5f116fa08aaca194d`.
 
 ## Fit for PantherPRO
 
+The repository now includes the adapter in `lib/forex-factory-scraper.ts`, an
+optional worker sync in `lib/calendar-sync.ts`, and a pinned private-service
+package under `integrations/forex-factory/`. These are implemented locally; an
+operational upstream scraper host, provider registration and live end-to-end
+validation are separate deployment requirements.
+
 Run the scraper separately from the Node web and push processes. Use USD events,
 explicit UTC timestamps and display conversion to Asia/Kuala_Lumpur. Its API
 returns normalized `event_time` and `event_id`; map those rather than guessing

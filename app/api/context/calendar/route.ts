@@ -1,4 +1,5 @@
 import { identity } from "@/lib/supabase";
+import { scraperCalendar } from "@/lib/forex-factory-scraper";
 import {
   CALENDAR_REFRESH_SECONDS,
   forexFactoryCalendar,
@@ -18,8 +19,17 @@ export async function GET() {
   // Cache failures too: repeated visitors must not hammer the upstream feed.
   if (!cached || Date.now() >= cached.until)
     cached = {
-      until: Date.now() + CALENDAR_REFRESH_SECONDS * 1000,
-      value: forexFactoryCalendar().catch(() => null),
+      until:
+        Date.now() +
+        (process.env.FF_SCRAPER_API_URL ? 300 : CALENDAR_REFRESH_SECONDS) *
+          1000,
+      value: (process.env.FF_SCRAPER_API_URL
+        ? scraperCalendar(
+            process.env.FF_SCRAPER_API_URL,
+            process.env.FF_SCRAPER_AUTH_TOKEN,
+          )
+        : forexFactoryCalendar()
+      ).catch(() => null),
     };
   const calendar = await cached.value;
   return calendar

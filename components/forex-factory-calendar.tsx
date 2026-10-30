@@ -47,8 +47,8 @@ export default function ForexFactoryCalendarPanel() {
       <div className="panel content-panel">
         <h2>Forex Factory · USD calendar</h2>
         <p>
-          This week’s USD releases, shown in Malaysia time. The source is
-          checked hourly; actual figures appear only when supplied by the feed.
+          USD releases, shown in Malaysia time. Actual figures appear only when
+          supplied by the source.
         </p>
         <a
           href="https://www.forexfactory.com/calendar"
@@ -64,7 +64,13 @@ export default function ForexFactoryCalendarPanel() {
           </p>
         )}
         {!calendar && !failed && <p>Loading calendar…</p>}
-        {calendar && <p>Retrieved {malaysiaTime(calendar.fetched_at)} MYT</p>}
+        {calendar && (
+          <p>
+            {calendar.source_name} · Retrieved{" "}
+            {malaysiaTime(calendar.fetched_at)} MYT · Refresh{" "}
+            {calendar.refresh_seconds / 60} minutes
+          </p>
+        )}
         {calendar?.events.length === 0 && (
           <p>No USD events were supplied for this week.</p>
         )}

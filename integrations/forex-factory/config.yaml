@@ -1,0 +1,12 @@
+months: [this, next]
+output_format: json
+output_dir: /data/news
+timezone: UTC
+allowed_currencies: [USD]
+allowed_impacts: [red, orange, yellow, gray]
+headless: true
+schedule_preset: hourly
+alerts:
+  rules_dir: rules
+  state_dir: /data/alerts
+  connectors: []

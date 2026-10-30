@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { safePushEndpoint, notificationPayload } from "../lib/push";
 import { classifyPushFailure } from "../lib/delivery";
+import { createCalendarSync } from "../lib/calendar-sync";
 const required = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -39,6 +40,11 @@ type Delivery = {
   signal_id: string | null;
   calendar_event_id?: string | null;
 };
+const syncCalendar = createCalendarSync(db, {
+  url: process.env.FF_SCRAPER_API_URL,
+  token: process.env.FF_SCRAPER_AUTH_TOKEN,
+  providerId: process.env.FF_CALENDAR_PROVIDER_ID,
+});
 async function rpc(name: string, params?: Record<string, unknown>) {
   const { data, error } = await db.rpc(name, params);
   if (error) throw new Error(`Worker database operation failed: ${name}`);
@@ -55,6 +61,20 @@ async function finish(item: Delivery, state: string, code?: string) {
     console.warn(JSON.stringify({ deliveryId: item.id, state: "lease_lost" }));
 }
 async function cycle() {
+  try {
+    const calendar = await syncCalendar();
+    if (calendar.imported)
+      console.info(
+        JSON.stringify({
+          component: "calendar_sync",
+          imported: calendar.imported,
+        }),
+      );
+  } catch {
+    console.error(
+      "Calendar sync unavailable; existing push delivery continues.",
+    );
+  }
   try {
     const engine = await automaticEngineCycle(db);
     if (engine.published || engine.events)
