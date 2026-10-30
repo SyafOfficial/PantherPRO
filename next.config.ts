@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  // Keep full type checking through the compiler API: the CLI subprocess
+  // output can be empty in the managed build environment.
+  experimental: { useTypeScriptCli: false },
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
   async headers() {

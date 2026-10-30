@@ -13,6 +13,16 @@ source links and individual feed availability. These are released headlines,
 not a streaming news service, economic calendar, forecast/actual comparison or
 PMI feed. Failed sources do not produce substitute headlines or trading bias.
 
+The Economic Calendar view separately uses the Forex Factory weekly JSON export
+at `https://nfs.faireconomy.media/ff_calendar_thisweek.json`. The authenticated
+`/api/context/calendar` endpoint caches responses and failures for one hour per
+server process. It shows USD events in Malaysia time, preserves source forecast
+and previous values, and leaves actual values unavailable unless explicitly
+supplied. It does not scrape HTML, infer release results, or feed automatic
+publication/notification rules. It is not a real-time release-results service.
+This upstream URL and its availability also require live verification. Source
+attribution does not establish a redistribution licence.
+
 The fixed RSS URLs still require live availability checks in the deployment
 environment. Local tests use controlled fixtures and simulated source failures;
 they do not establish that those upstream feeds currently respond. This change

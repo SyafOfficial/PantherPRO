@@ -7,6 +7,7 @@ import MarketContextPanel, {
 import type { MT5Display } from "@/lib/engine/display";
 import Link from "next/link";
 import CalendarEvents from "./calendar-events";
+import ForexFactoryCalendarPanel from "./forex-factory-calendar";
 import { STRATEGIES, TIMEFRAMES } from "@/lib/strategy";
 import NewsGuide from "./news-guide";
 import NewsRisk from "./news-risk";
@@ -1223,7 +1224,11 @@ function Section({
             stay unavailable. No calendar or AI reaction is invented.
           </p>
         </div>
-        <CalendarEvents events={events} />
+        {demo ? (
+          <CalendarEvents events={events} />
+        ) : (
+          <ForexFactoryCalendarPanel />
+        )}
         {!demo && <OfficialNewsPanel />}
         <NewsGuide />
       </>
