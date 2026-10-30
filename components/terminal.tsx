@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import MT5Chart from "@/components/mt5-chart";
+import MarketContextPanel, {
+  OfficialNewsPanel,
+} from "@/components/market-context";
 import type { MT5Display } from "@/lib/engine/display";
 import Link from "next/link";
 import CalendarEvents from "./calendar-events";
@@ -726,6 +729,10 @@ export default function Terminal({
               demo={demo}
               events={market.events}
               intelligence={intelligence}
+              mt5={mt5}
+              marketFresh={fresh && !mt5Error}
+              chartTimeframe={timeframe}
+              onChartTimeframe={setTimeframe}
             />
           )}
           <footer>
@@ -1074,7 +1081,15 @@ function Section({
   demo,
   events,
   intelligence,
+  mt5,
+  marketFresh,
+  chartTimeframe,
+  onChartTimeframe,
 }: {
+  mt5: MT5Display | null;
+  marketFresh: boolean;
+  chartTimeframe: string;
+  onChartTimeframe: (frame: string) => void;
   view: string;
   user: Props["user"];
   events: MarketSnapshot["events"];
@@ -1082,6 +1097,15 @@ function Section({
   navigate: (s: string) => void;
   demo: boolean;
 }) {
+  if (view === "Market Analysis" && !demo)
+    return (
+      <MarketContextPanel
+        data={mt5}
+        fresh={marketFresh}
+        timeframe={chartTimeframe}
+        onTimeframe={onChartTimeframe}
+      />
+    );
   if (view === "VIP Membership")
     return (
       <div className="membership panel">
@@ -1200,6 +1224,7 @@ function Section({
           </p>
         </div>
         <CalendarEvents events={events} />
+        {!demo && <OfficialNewsPanel />}
         <NewsGuide />
       </>
     );

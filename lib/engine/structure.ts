@@ -2,7 +2,10 @@ import { z } from "zod";
 import { TIMEFRAMES } from "../strategy";
 import { mt5SnapshotSchema, inspectMt5Snapshot } from "./mt5";
 type Snapshot = z.infer<typeof mt5SnapshotSchema>;
-type Bar = Snapshot["series"][number]["candles"][number];
+type Bar = Pick<
+  Snapshot["series"][number]["candles"][number],
+  "opened_at_server_raw" | "open" | "high" | "low" | "close"
+>;
 export type Pivot = {
   kind: "high" | "low";
   price: number;
