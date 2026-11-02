@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mt5SnapshotSchema } from "./mt5";
 import {
@@ -85,4 +86,23 @@ export function createOwnerShadowCycle(db: SupabaseClient) {
       reasons: result.reasons,
     };
   };
+}
+
+export function ownerShadowFailure(error: unknown) {
+  if (error instanceof z.ZodError)
+    return {
+      state: "snapshot_invalid",
+      issues: error.issues
+        .map((i) => ({ path: i.path.join("."), code: i.code }))
+        .slice(0, 10),
+    };
+  const message = error instanceof Error ? error.message : "";
+  const reasons: Record<string, string> = {
+    "Fresh broker feed required": "quote_stale_or_clock_mismatch",
+    "Bridge unavailable or stale; scan withheld": "bridge_unavailable_or_stale",
+    "Private shadow migration required": "shadow_migration_required",
+    "Private shadow state unavailable": "shadow_storage_unavailable",
+    "Private shadow progress not committed": "shadow_progress_unavailable",
+  };
+  return { state: reasons[message] ?? "shadow_cycle_unavailable" };
 }

@@ -127,3 +127,14 @@ test("feed readiness uses observed receipt and export timestamps rather than a h
     "invalid_timestamps",
   );
 });
+test("recent exports cannot conceal stale broker ticks", () => {
+  const now = Date.parse("2026-11-02T14:00:00Z");
+  const row = {
+    received_at: new Date(now).toISOString(),
+    exported_at: new Date(now).toISOString(),
+    server_time: 1000,
+    tick_time: 900,
+  };
+  assert.equal(feedStatus(row, now).quote_usable, false);
+  assert.equal(feedStatus({ ...row, tick_time: 999 }, now).quote_usable, true);
+});

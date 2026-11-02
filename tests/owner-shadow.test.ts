@@ -323,3 +323,22 @@ test("scanner produces private monitor candidates with aligned highest-frame con
   );
   assert.equal(new Set(r.setups.map((x) => x.id)).size, r.setups.length);
 });
+
+import { ownerShadowFailure } from "../lib/engine/owner-service";
+test("shadow failure reports known causes without dumping secrets or raw snapshots", () => {
+  assert.equal(
+    ownerShadowFailure(new Error("Fresh broker feed required")).state,
+    "quote_stale_or_clock_mismatch",
+  );
+  assert.equal(
+    JSON.stringify(ownerShadowFailure(new Error("secret-value"))).includes(
+      "secret-value",
+    ),
+    false,
+  );
+  try {
+    scanOwnerShadow({}, Date.now());
+  } catch (error) {
+    assert.equal(ownerShadowFailure(error).state, "snapshot_invalid");
+  }
+});

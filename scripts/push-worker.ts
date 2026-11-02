@@ -1,3 +1,4 @@
+import { ownerShadowFailure } from "../lib/engine/owner-service";
 import { createOwnerShadowCycle } from "../lib/engine/owner-service";
 import { automaticEngineCycle } from "../lib/engine/service";
 import { createClient } from "@supabase/supabase-js";
@@ -73,9 +74,12 @@ async function cycle() {
           ...(await ownerShadowCycle()),
         }),
       );
-    } catch {
+    } catch (error) {
       console.warn(
-        "Owner shadow scan unavailable; existing push delivery continues.",
+        JSON.stringify({
+          component: "owner_shadow",
+          ...ownerShadowFailure(error),
+        }),
       );
     }
   }

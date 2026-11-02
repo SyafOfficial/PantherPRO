@@ -43,7 +43,9 @@ export async function GET() {
     .maybeSingle();
   const feed = await serviceDb()
     .from("mt5_bridge_latest")
-    .select("received_at,exported_at")
+    .select(
+      "received_at,exported_at,server_time:snapshot->server_time_raw,tick_time:snapshot->quote->last_tick_time_raw",
+    )
     .eq("source", "vestrado")
     .maybeSingle();
   const shadow = await serviceDb()
