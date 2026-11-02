@@ -1,7 +1,7 @@
 import { z } from "zod";
 const price = z.number().positive().finite();
 const rawTime = z.number().int().positive().safe();
-const frames = ["M5", "M15", "M30", "H1", "H4", "W1", "MN1"] as const;
+const frames = ["M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN1"] as const;
 const bar = z
   .object({
     opened_at_server_raw: rawTime,
@@ -53,7 +53,15 @@ function barClose(frame: (typeof frames)[number], opened: number) {
   return (
     opened +
     (
-      { M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400, W1: 604800 } as const
+      {
+        M5: 300,
+        M15: 900,
+        M30: 1800,
+        H1: 3600,
+        H4: 14400,
+        D1: 86400,
+        W1: 604800,
+      } as const
     )[frame]
   );
 }
@@ -83,7 +91,7 @@ export const mt5SnapshotSchema = z
           Math.floor(q.last_tick_time_msc_raw / 1000) === q.last_tick_time_raw,
         "Invalid tick or spread",
       ),
-    series: z.array(series).length(7),
+    series: z.array(series).min(7).max(8),
     ask_m5: z.array(bar).max(100).optional(),
     order_book: z
       .object({
@@ -108,7 +116,12 @@ export const mt5SnapshotSchema = z
   })
   .strict()
   .superRefine((s, c) => {
-    if (new Set(s.series.map((v) => v.timeframe)).size !== 7)
+    if (
+      new Set(s.series.map((v) => v.timeframe)).size !== s.series.length ||
+      ["M5", "M15", "M30", "H1", "H4", "W1", "MN1"].some(
+        (f) => !s.series.some((v) => v.timeframe === f),
+      )
+    )
       c.addIssue({
         code: "custom",
         message: "Missing or duplicated timeframes",

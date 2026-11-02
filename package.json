@@ -19,7 +19,9 @@
     "calendar:queue": "node --env-file-if-exists=.env.local --import tsx scripts/queue-calendar-news.ts",
     "deploy:check": "node --env-file-if-exists=.env.local --import tsx scripts/deploy-check.ts",
     "mt5:inspect": "node --import tsx scripts/inspect-mt5.ts",
-    "engine:scan": "node --env-file-if-exists=.env.local --import tsx scripts/scan-mt5.ts"
+    "engine:scan": "node --env-file-if-exists=.env.local --import tsx scripts/scan-mt5.ts",
+    "engine:owner:scan": "node --env-file-if-exists=.env.local --import tsx scripts/owner-shadow-worker.ts --once",
+    "engine:owner:worker": "node --env-file-if-exists=.env.local --import tsx scripts/owner-shadow-worker.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.8.0",
