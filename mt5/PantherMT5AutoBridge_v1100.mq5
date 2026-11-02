@@ -34,8 +34,8 @@ void UpdateAskM5(){
  CachedAsk.time=(datetime)opened;CachedAsk.tick_volume=accepted;
  CachedAskOpen=opened;AskReady=true;
 }
-ENUM_TIMEFRAMES Frames[]={PERIOD_M5,PERIOD_M15,PERIOD_M30,PERIOD_H1,PERIOD_H4,PERIOD_D1,PERIOD_W1,PERIOD_MN1};
-string FrameNames[]={"M5","M15","M30","H1","H4","D1","W1","MN1"};
+ENUM_TIMEFRAMES Frames[]={PERIOD_M5,PERIOD_M15,PERIOD_M30,PERIOD_H1,PERIOD_H4,PERIOD_W1,PERIOD_MN1,PERIOD_D1};
+string FrameNames[]={"M5","M15","M30","H1","H4","W1","MN1","D1"};
 string Esc(string value){StringReplace(value,"\\","\\\\");StringReplace(value,"\"","\\\"");StringReplace(value,"\r","\\r");StringReplace(value,"\n","\\n");return value;}
 string Num(double value,int digits){return DoubleToString(value,digits);}
 string Whole(long value){return StringFormat("%I64d",value);}

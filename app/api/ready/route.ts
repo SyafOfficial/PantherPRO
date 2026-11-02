@@ -1,3 +1,4 @@
+import { feedStatus } from "@/lib/engine/feed-status";
 import { validVapidPair } from "@/lib/push-keys";
 import { productionIssues } from "@/lib/deployment";
 import { serviceConfigured, serviceDb } from "@/lib/service-db";
@@ -40,9 +41,26 @@ export async function GET() {
     .select("enabled,version,last_snapshot_processed")
     .eq("singleton", true)
     .maybeSingle();
+  const feed = await serviceDb()
+    .from("mt5_bridge_latest")
+    .select("received_at,exported_at")
+    .eq("source", "vestrado")
+    .maybeSingle();
+  const shadow = await serviceDb()
+    .from("owner_shadow_setups")
+    .select("id", { count: "exact", head: true });
+  const market = feed.error
+    ? { status: "unavailable" as const }
+    : feedStatus(feed.data, Date.now());
   return Response.json(
     {
       status: "ready",
+      owner_strategy: {
+        version: "panther-owner-v2",
+        mode: "shadow_only",
+        storage_installed: !shadow.error,
+        client_publication: false,
+      },
       automatic_engine:
         engine.error || !engine.data
           ? { installed: false }
@@ -54,7 +72,7 @@ export async function GET() {
             },
       checks: { configuration: true, database: true },
       external_delivery: "unverified",
-      market_feed: "disconnected",
+      market_feed: market,
     },
     { headers },
   );

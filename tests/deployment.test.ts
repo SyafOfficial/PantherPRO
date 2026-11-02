@@ -97,3 +97,33 @@ test("Render supplied origin is validated and explicit app origin takes preceden
       publicOrigin({ APP_MODE: "production", RENDER_EXTERNAL_URL: value }),
     );
 });
+
+import { feedStatus } from "../lib/engine/feed-status";
+test("feed readiness uses observed receipt and export timestamps rather than a hardcoded label", () => {
+  const now = Date.parse("2026-11-02T14:00:00Z");
+  assert.equal(feedStatus(null, now).status, "unavailable");
+  assert.equal(
+    feedStatus(
+      {
+        received_at: new Date(now - 1000).toISOString(),
+        exported_at: new Date(now - 2000).toISOString(),
+      },
+      now,
+    ).status,
+    "fresh",
+  );
+  assert.equal(
+    feedStatus(
+      {
+        received_at: new Date(now).toISOString(),
+        exported_at: new Date(now - 31000).toISOString(),
+      },
+      now,
+    ).status,
+    "stale",
+  );
+  assert.equal(
+    feedStatus({ received_at: "invalid", exported_at: "invalid" }, now).status,
+    "invalid_timestamps",
+  );
+});

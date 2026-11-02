@@ -1,3 +1,4 @@
+import { createOwnerShadowCycle } from "../lib/engine/owner-service";
 import { automaticEngineCycle } from "../lib/engine/service";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
@@ -60,7 +61,24 @@ async function finish(item: Delivery, state: string, code?: string) {
   if (!saved)
     console.warn(JSON.stringify({ deliveryId: item.id, state: "lease_lost" }));
 }
+const ownerShadowCycle = createOwnerShadowCycle(db);
+let ownerCheckedAt = 0;
 async function cycle() {
+  if (Date.now() - ownerCheckedAt >= 60000) {
+    ownerCheckedAt = Date.now();
+    try {
+      console.info(
+        JSON.stringify({
+          component: "owner_shadow",
+          ...(await ownerShadowCycle()),
+        }),
+      );
+    } catch {
+      console.warn(
+        "Owner shadow scan unavailable; existing push delivery continues.",
+      );
+    }
+  }
   try {
     const calendar = await syncCalendar();
     if (calendar.imported)

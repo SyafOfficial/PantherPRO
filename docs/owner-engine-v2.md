@@ -32,3 +32,9 @@ The private monitor uses broker wall-time coordinates for sequencing; exported U
 5. Review private `owner_shadow_setups`, `owner_shadow_events` and worker logs. Test both directions, every method, first touch/freshness, data gaps and restarts with real examples before wiring public publication or notifications. At most 200 oldest active setups are monitored per pass in this prototype; add lifecycle expiry/pagination before scale.
 
 Render settings, Supabase migrations, MT5 cloud installation, feed rights and physical-device notification delivery require connected production validation. No credentials were supplied here and no cloud services were purchased.
+
+## Existing Render worker integration
+
+The existing `push:worker` now also attempts an owner shadow cycle once per minute. This reuses its existing Supabase connection and adds no new Render service. If migration 012 is absent it logs `migration_required` and continues current push delivery. The standalone owner worker remains available for a separate, faster observation process. New `/api/ready` diagnostics report receipt/export ages and shadow-storage availability instead of a fixed disconnected market label. The old automatic policy remains separate and is not converted to owner-v2 publication.
+
+Daily is appended after the original seven exporter frames to preserve existing weekly/monthly chart projections. Existing snapshots retain their original frame positions.
