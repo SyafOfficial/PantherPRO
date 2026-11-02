@@ -16,17 +16,18 @@ create table public.owner_shadow_events (
 alter table public.owner_shadow_setups enable row level security;
 alter table public.owner_shadow_events enable row level security;
 revoke all on public.owner_shadow_setups,public.owner_shadow_events from public,anon,authenticated;
-grant select on public.owner_shadow_setups,public.owner_shadow_events to service_role;
+grant select,insert,update on public.owner_shadow_setups to service_role;
+grant select,insert on public.owner_shadow_events to service_role;
 create function public.record_owner_shadow(proposal jsonb) returns void
-language plpgsql security definer set search_path=public as $$
+language plpgsql security invoker set search_path=public as $$
 begin
- if proposal->>'mode'<>'shadow_only' or proposal->>'status' not in ('monitor_zone','entry_confirmed') then raise exception 'Invalid shadow proposal'; end if;
+ if (proposal->>'mode') is distinct from 'shadow_only' or coalesce(proposal->>'status','') not in ('monitor_zone','entry_confirmed') then raise exception 'Invalid shadow proposal'; end if;
  insert into owner_shadow_setups(id,payload) values(proposal->>'id',proposal)
  on conflict(id) do update set payload=excluded.payload, updated_at=now()
  where owner_shadow_setups.payload->>'status'='monitor_zone';
 end; $$;
 create function public.commit_owner_shadow_progress(setup_key text, expected_version bigint, next_progress jsonb, emitted jsonb) returns boolean
-language plpgsql security definer set search_path=public as $$
+language plpgsql security invoker set search_path=public as $$
 begin
  update owner_shadow_setups set progress=next_progress,version=version+1,updated_at=now()
  where id=setup_key and version=expected_version and payload->>'status'='entry_confirmed';
@@ -40,3 +41,7 @@ revoke all on function public.record_owner_shadow(jsonb) from public,anon,authen
 revoke all on function public.commit_owner_shadow_progress(text,bigint,jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.record_owner_shadow(jsonb) to service_role;
 grant execute on function public.commit_owner_shadow_progress(text,bigint,jsonb,jsonb) to service_role;
+
+create index owner_shadow_events_setup_id_idx on public.owner_shadow_events(setup_id);
+create index owner_shadow_active_idx on public.owner_shadow_setups(created_at)
+where payload->>'status'='entry_confirmed' and progress->>'invalidated'='false';
