@@ -1248,26 +1248,31 @@ function Section({
   if (view === "Economic Calendar")
     return (
       <>
-        <div className="panel content-panel">
-          <div className="section-title">
-            <h2>
-              <CalendarDays size={20} />
-              Economic releases
-            </h2>
-            <span className="outline-tag">MALAYSIA TIME · UTC+8</span>
+        {demo && (
+          <div className="panel content-panel">
+            <div className="section-title">
+              <h2>
+                <CalendarDays size={20} />
+                Economic releases
+              </h2>
+              <span className="outline-tag">MALAYSIA TIME · UTC+8</span>
+            </div>
+            <p>
+              Provider-sourced releases, forecasts and revisions. Missing
+              figures stay unavailable. No calendar or AI reaction is invented.
+            </p>
           </div>
-          <p>
-            Provider-sourced releases, forecasts and revisions. Missing figures
-            stay unavailable. No calendar or AI reaction is invented.
-          </p>
-        </div>
+        )}
         {demo ? (
           <CalendarEvents events={events} />
         ) : (
           <ForexFactoryCalendarPanel />
         )}
-        {!demo && <OfficialNewsPanel />}
-        <NewsGuide />
+        <details className="panel content-panel calendar-extra-context">
+          <summary>News context & official releases</summary>
+          {!demo && <OfficialNewsPanel />}
+          <NewsGuide />
+        </details>
       </>
     );
   return (

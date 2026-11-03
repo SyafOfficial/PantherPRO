@@ -2538,3 +2538,263 @@ footer p {
   font-size: 11px;
   line-height: 1.8;
 }
+.daily-calendar-header {
+  padding: 26px;
+  margin-bottom: 20px;
+}
+.daily-calendar-header h2 {
+  margin: 8px 0;
+  font-size: 25px;
+}
+.daily-calendar-header .outline-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.daily-calendar-intro {
+  font-size: 12px;
+  color: var(--muted);
+}
+.calendar-day-controls {
+  display: flex;
+  gap: 10px;
+  margin: 20px 0;
+  flex-wrap: wrap;
+}
+.calendar-date-switch {
+  display: flex;
+  border: 1px solid var(--border, #2a2b34);
+  border-radius: 6px;
+  overflow: hidden;
+  align-items: center;
+  background: #101219;
+}
+.calendar-date-switch button {
+  display: grid;
+  place-items: center;
+  padding: 11px;
+  color: #d7b568;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.calendar-date-switch input {
+  color: #eee;
+  background: transparent;
+  border: 0;
+  padding: 9px;
+  font: inherit;
+  color-scheme: dark;
+  max-width: 165px;
+}
+.calendar-impact-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.impact-summary {
+  text-align: left;
+  border: 1px solid #2b2d37;
+  border-radius: 6px;
+  background: #11131a;
+  padding: 16px;
+  cursor: pointer;
+  color: #eee;
+  border-top: 2px solid var(--impact-color, #d7b568);
+}
+.impact-high {
+  --impact-color: #d87d87;
+}
+.impact-medium {
+  --impact-color: #d7b568;
+}
+.impact-low {
+  --impact-color: #79bda6;
+}
+.impact-holiday {
+  --impact-color: #9a9faa;
+}
+.impact-summary span {
+  font-size: 9px;
+  letter-spacing: 0.09em;
+  color: var(--impact-color);
+}
+.impact-summary strong {
+  display: block;
+  font-size: 25px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+.calendar-impact-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.calendar-impact-filters button {
+  border: 1px solid #2c2e38;
+  border-radius: 4px;
+  background: transparent;
+  color: #a5adbc;
+  padding: 8px 12px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.calendar-impact-filters button[aria-pressed="true"],
+.impact-summary[aria-pressed="true"] {
+  border-color: #d7b568;
+  color: #e6c77c;
+  background: #d7b5680c;
+}
+.calendar-update-line {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 10px;
+  color: #929bac;
+  margin-bottom: 8px;
+}
+.calendar-update-line a {
+  color: #d7b568;
+}
+.daily-calendar-header small,
+.daily-calendar-footnote {
+  color: #929bac;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.calendar-feed-warning {
+  font-size: 12px;
+  padding: 12px;
+  border: 1px solid #d7b56855;
+  color: #e6c77c;
+  border-radius: 4px;
+}
+.daily-event-list {
+  display: grid;
+  gap: 12px;
+}
+.daily-event {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  border-left: 2px solid var(--impact-color);
+  overflow: hidden;
+}
+.daily-event-time {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  border-right: 1px solid #262833;
+  background: #ffffff02;
+}
+.daily-event-time strong {
+  font-size: 20px;
+  font-weight: 500;
+}
+.daily-event-time span {
+  font-size: 9px;
+  color: #929bac;
+  letter-spacing: 0.1em;
+}
+.daily-event-content {
+  padding: 22px;
+  min-width: 0;
+}
+.daily-event-labels {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.news-impact {
+  color: var(--impact-color);
+  font-size: 9px;
+  letter-spacing: 0.05em;
+}
+.daily-event-state {
+  font-size: 8px;
+  color: #929bac;
+  margin-left: auto;
+}
+.daily-event-content h3 {
+  font-size: 17px;
+  line-height: 1.5;
+  margin: 13px 0 18px;
+}
+.daily-event-content .calendar-figures {
+  margin: 0;
+}
+.daily-event-content .calendar-figures strong {
+  font-size: 16px;
+}
+.calendar-day-empty {
+  padding: 36px 22px;
+  text-align: center;
+  margin: 15px 0;
+}
+.calendar-day-empty svg {
+  color: #d7b568;
+}
+.calendar-day-empty h3 {
+  font-size: 16px;
+  margin: 15px 0;
+}
+.calendar-day-empty p {
+  font-size: 12px;
+  color: #929bac;
+}
+@media (max-width: 600px) {
+  .daily-calendar-header {
+    padding: 18px;
+  }
+  .daily-calendar-header h2 {
+    font-size: 21px;
+  }
+  .daily-calendar-header .section-title {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .calendar-impact-summary {
+    gap: 7px;
+  }
+  .impact-summary {
+    padding: 11px;
+  }
+  .impact-summary span {
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+  .daily-event {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+  .daily-event-time {
+    padding: 20px 9px;
+  }
+  .daily-event-time strong {
+    font-size: 16px;
+  }
+  .daily-event-content {
+    padding: 16px 12px;
+  }
+  .daily-event-content h3 {
+    font-size: 14px;
+  }
+  .daily-event-state {
+    margin-left: 0;
+  }
+}
+.calendar-extra-context {
+  margin-top: 24px;
+}
+.calendar-extra-context summary {
+  color: #d7b568;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 6px 0;
+}
+.calendar-extra-context[open] summary {
+  margin-bottom: 20px;
+}
