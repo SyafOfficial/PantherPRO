@@ -1,4 +1,7 @@
 "use server";
+import { headers } from "next/headers";
+import { publicOrigin } from "@/lib/deployment";
+import { authFailureMessage } from "@/lib/auth-messages";
 import { redirect } from "next/navigation";
 import { identity } from "@/lib/supabase";
 import { supabase, isConfigured } from "@/lib/supabase";
@@ -25,19 +28,20 @@ export async function authenticate(form: FormData) {
     const { error } = await db.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name || "Member" } },
+      options: {
+        data: { display_name: name || "Member" },
+        emailRedirectTo:
+          publicOrigin(process.env, (await headers()).get("origin")) +
+          "/auth/callback",
+      },
     });
-    if (error)
-      message(
-        "Unable to create an account. Try again later or contact support.",
-      );
-    message("Check your email to confirm your account, then sign in.");
+    if (error) message(authFailureMessage(error, "signup"));
+    message(
+      "If this address is new, check Inbox and Spam/Junk for confirmation. Already registered? Sign in instead. If no email arrives, use Resend confirmation below.",
+    );
   }
   const { error } = await db.auth.signInWithPassword({ email, password });
-  if (error)
-    message(
-      "Unable to sign in. Check your credentials and email confirmation, or try again later.",
-    );
+  if (error) message(authFailureMessage(error, "login"));
   const user = await identity();
   if (user?.role === "admin") redirect("/account/security");
   redirect("/");
@@ -48,4 +52,25 @@ export async function signOut() {
     await db.auth.signOut();
   }
   redirect("/");
+}
+
+export async function resendConfirmation(form: FormData) {
+  if (!isConfigured()) message("Email confirmation is not configured.");
+  const email = String(form.get("email") ?? "").trim();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    message("Enter a valid email address.");
+  const db = await supabase();
+  const { error } = await db.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo:
+        publicOrigin(process.env, (await headers()).get("origin")) +
+        "/auth/callback",
+    },
+  });
+  if (error) message(authFailureMessage(error, "resend"));
+  message(
+    "If this address needs confirmation, a new email has been requested. Check Inbox and Spam/Junk. Wait at least 60 seconds before requesting again; a request does not guarantee inbox delivery.",
+  );
 }

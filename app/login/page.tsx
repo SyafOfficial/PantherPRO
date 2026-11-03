@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { authenticate } from "./actions";
+import { authenticate, resendConfirmation } from "./actions";
 import SignOutButton from "@/components/sign-out-button";
 import { identity, isConfigured } from "@/lib/supabase";
 export default async function Login({
@@ -112,6 +112,34 @@ export default async function Login({
                 {signup ? "Create account" : "Sign in securely"}
               </button>
             </form>
+            <details style={{ marginTop: 18 }}>
+              <summary className="text-button">
+                Didn't receive your confirmation email?
+              </summary>
+              <form
+                className="form"
+                action={resendConfirmation}
+                style={{ marginTop: 14 }}
+              >
+                <label>
+                  Email address
+                  <input
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    maxLength={254}
+                    required
+                  />
+                </label>
+                <button className="secondary-button" disabled={!isConfigured()}>
+                  Resend confirmation
+                </button>
+                <small>
+                  Check Spam/Junk and the spelling of your address. Wait at
+                  least 60 seconds between requests.
+                </small>
+              </form>
+            </details>
             <p style={{ fontSize: 10, marginTop: 18 }}>
               Email confirmation is required. Account creation does not grant
               VIP or administrator privileges.
