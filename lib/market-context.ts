@@ -1,3 +1,4 @@
+import { rsiMomentum } from "./momentum";
 import { bodyOriginLevels } from "./body-levels";
 import { quoteFreshness } from "./market-data";
 import { detectStructure } from "./engine/structure";
@@ -52,6 +53,13 @@ export function marketContext(data: MT5Display, now: number) {
     );
   let atr = ranges.slice(0, 14).reduce((a, b) => a + b, 0) / 14;
   for (const value of ranges.slice(14)) atr = (atr * 13 + value) / 14;
+  const bias =
+    structure === "up" && fast > slow
+      ? "bullish"
+      : structure === "down" && fast < slow
+        ? "bearish"
+        : "mixed";
+  const rsi14 = rsi(closes);
   return {
     status: quoteFreshness(data.quote, now)
       ? ("ready" as const)
@@ -60,15 +68,11 @@ export function marketContext(data: MT5Display, now: number) {
     source: data.quote.source_name,
     asOf: data.exported_at,
     structure,
-    bias:
-      structure === "up" && fast > slow
-        ? "bullish"
-        : structure === "down" && fast < slow
-          ? "bearish"
-          : "mixed",
+    bias,
+    momentum: rsiMomentum(rsi14, bias),
     ema20: fast,
     ema50: slow,
-    rsi14: rsi(closes),
+    rsi14,
     atr14: atr,
     support,
     resistance,

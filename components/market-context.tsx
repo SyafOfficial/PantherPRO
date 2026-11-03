@@ -157,15 +157,51 @@ export default function MarketContextPanel({
           <h3>Trend & momentum</h3>
           {ready ? (
             <>
-              <p>
-                {context.timeframe} structure:{" "}
-                <strong>{context.structure}</strong> · alignment:{" "}
-                <strong>{context.bias}</strong>
+              <dl className="market-momentum">
+                <div>
+                  <dt>Market bias</dt>
+                  <dd className={`bias-${context.bias}`}>
+                    {context.bias === "mixed"
+                      ? "MIXED"
+                      : context.bias.toUpperCase()}
+                  </dd>
+                </div>
+                <div>
+                  <dt>RSI14</dt>
+                  <dd>
+                    {fmt(context.rsi14)} · {context.momentum.zone.toUpperCase()}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Momentum</dt>
+                  <dd className={`bias-${context.momentum.direction}`}>
+                    {context.momentum.direction.toUpperCase()}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Bias alignment</dt>
+                  <dd>
+                    {context.momentum.alignment === "aligned"
+                      ? "ALIGNED"
+                      : context.momentum.alignment === "against_bias"
+                        ? "AGAINST BIAS"
+                        : "UNCONFIRMED"}
+                  </dd>
+                </div>
+              </dl>
+              <p className="momentum-guide">
+                RSI ≥70: high / overbought · ≤30: low / oversold.
+                <br />
+                Above 50: bullish momentum · below 50: bearish · 50: neutral.
               </p>
+              <small>
+                Bias uses {context.timeframe} structure and EMA20/50 alignment.
+                RSI measures momentum; high/low readings alone do not signal a
+                reversal or entry.
+              </small>
               <p>
                 EMA20 {fmt(context.ema20)} · EMA50 {fmt(context.ema50)}
               </p>
-              <p>RSI14 {fmt(context.rsi14)}</p>
               <small>
                 Based on {context.bars} completed source candles.{" "}
                 {context.status === "stale" || !fresh

@@ -2512,3 +2512,29 @@ footer p {
 .segmented {
   flex-wrap: wrap;
 }
+
+.market-momentum {
+  margin: 16px 0;
+  font-size: 12px;
+}
+.market-momentum > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border, #272731);
+}
+.market-momentum dt {
+  color: var(--muted, #9ba1ae);
+}
+.market-momentum dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.momentum-guide {
+  font-size: 11px;
+  line-height: 1.8;
+}
