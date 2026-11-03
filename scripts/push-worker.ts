@@ -4,7 +4,11 @@ import { createOwnerShadowCycle } from "../lib/engine/owner-service";
 import { automaticEngineCycle } from "../lib/engine/service";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
-import { safePushEndpoint, notificationPayload } from "../lib/push";
+import {
+  safePushEndpoint,
+  notificationPayload,
+  type PushSignalDetails,
+} from "../lib/push";
 import { classifyPushFailure } from "../lib/delivery";
 import { createCalendarSync } from "../lib/calendar-sync";
 const required = [
@@ -150,12 +154,37 @@ async function cycle() {
       continue;
     }
     try {
+      let signal: PushSignalDetails | null = null;
+      if (item.event_type === "signal.active" && item.signal_id) {
+        const { data, error } = await db
+          .from("signals")
+          .select(
+            "direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,status,published_at",
+          )
+          .eq("id", item.signal_id)
+          .maybeSingle();
+        if (error) throw new Error("Entry notification lookup failed");
+        if (!data || data.status !== "active" || !data.published_at) {
+          await finish(item, "skipped", "signal_not_active");
+          continue;
+        }
+        signal = data;
+        if (
+          !(await rpc("notification_allowed", {
+            event_id: item.outbox_id,
+            device_id: item.subscription_id,
+          }))
+        ) {
+          await finish(item, "skipped", "no_longer_eligible");
+          continue;
+        }
+      }
       await webpush.sendNotification(
         {
           endpoint: item.endpoint,
           keys: { p256dh: item.p256dh, auth: item.auth },
         },
-        JSON.stringify(notificationPayload(item)),
+        JSON.stringify(notificationPayload(item, signal)),
         { TTL: 300, urgency: "normal", timeout: 10000 },
       );
       await finish(item, "delivered");

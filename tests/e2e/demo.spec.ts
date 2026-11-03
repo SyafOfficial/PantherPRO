@@ -216,9 +216,9 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
   expect((await notifications())[0].title).toBe("New signal · Panther FX");
   expect((await notifications())[0].body).not.toContain("2340");
   for (const [index, eventType, expectedTitle] of [
-    [80, "signal.tp1", "TP1 reached · Panther FX"],
-    [81, "signal.tp2", "TP2 reached · Panther FX"],
-    [82, "signal.tp3", "TP3 reached · Panther FX"],
+    [80, "signal.tp1", "HIT TP 1 Lads!"],
+    [81, "signal.tp2", "HIT TP 2 Lads!"],
+    [82, "signal.tp3", "HIT TP3!"],
     [83, "signal.stop_hit", "SL confirmed · Panther FX"],
     [84, "signal.break_even", "Trade management · Panther FX"],
   ] as const) {

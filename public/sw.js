@@ -94,27 +94,9 @@ self.addEventListener("push", (event) => {
         return;
       if (!(await firstDelivery(payload.id))) return;
       const progressCopies = new Map([
-        [
-          "signal.tp1",
-          [
-            "TP1 reached · Panther FX",
-            "TP1 was reached on the observed feed. Open your terminal for details.",
-          ],
-        ],
-        [
-          "signal.tp2",
-          [
-            "TP2 reached · Panther FX",
-            "TP2 was reached on the observed feed. Open your terminal for details.",
-          ],
-        ],
-        [
-          "signal.tp3",
-          [
-            "TP3 reached · Panther FX",
-            "TP3 was reached on the observed feed. Open your terminal for details.",
-          ],
-        ],
+        ["signal.tp1", ["HIT TP 1 Lads!", "Collect half now and Set BE"]],
+        ["signal.tp2", ["HIT TP 2 Lads!", "Collect half now and Set BE"]],
+        ["signal.tp3", ["HIT TP3!", "CLOSE ALL NOW"]],
         [
           "signal.stop_hit",
           [
@@ -133,10 +115,16 @@ self.addEventListener("push", (event) => {
       const copy =
         progressCopies.get(payload.eventType) ??
         (payload.eventType === "signal.active"
-          ? [
-              "New signal · Panther FX",
-              "A new signal is available. Open your terminal to view it.",
-            ]
+          ? typeof payload.title === "string" &&
+            payload.title.startsWith("Panther FX · XAUUSD ") &&
+            typeof payload.body === "string" &&
+            payload.body.startsWith("Entry: ") &&
+            payload.body.length <= 800
+            ? [payload.title, payload.body]
+            : [
+                "New signal · Panther FX",
+                "A new signal is available. Open your terminal to view it.",
+              ]
           : payload.eventType === "signal.closed"
             ? [
                 "Signal closed · Panther FX",

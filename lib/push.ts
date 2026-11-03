@@ -43,19 +43,61 @@ export const subscriptionSchema = z
       .strict(),
   })
   .strict();
-export function notificationPayload(delivery: {
-  id: string;
-  outbox_id: string;
-  event_type: string;
-  signal_id: string | null;
-  calendar_event_id?: string | null;
-}) {
+export type PushSignalDetails = {
+  direction: string;
+  entry: number | string;
+  entry_low: number | string | null;
+  entry_high: number | string | null;
+  stop_loss: number | string;
+  tp1: number | string;
+  tp2: number | string;
+  tp3: number | string;
+};
+export function notificationPayload(
+  delivery: {
+    id: string;
+    outbox_id: string;
+    event_type: string;
+    signal_id: string | null;
+    calendar_event_id?: string | null;
+  },
+  signal?: PushSignalDetails | null,
+) {
+  let title = "Panther FX intelligence";
+  let body = "A new update is available. Open your terminal to review it.";
+  if (delivery.event_type === "signal.active" && signal) {
+    const values = [
+      signal.entry,
+      signal.stop_loss,
+      signal.tp1,
+      signal.tp2,
+      signal.tp3,
+    ].map(Number);
+    const low = signal.entry_low == null ? values[0] : Number(signal.entry_low);
+    const high =
+      signal.entry_high == null ? values[0] : Number(signal.entry_high);
+    if (
+      ![...values, low, high].every((n) => Number.isFinite(n) && n > 0) ||
+      low > high ||
+      !["BUY", "SELL"].includes(signal.direction)
+    )
+      throw new Error("Invalid entry notification levels");
+    const price = (n: number) => n.toFixed(2);
+    title = `Panther FX · XAUUSD ${signal.direction}`;
+    body = [
+      `Entry: ${price(low)} – ${price(high)}`,
+      `SL: ${price(values[1])}`,
+      `TP1: ${price(values[2])}`,
+      `TP2: ${price(values[3])}`,
+      `TP3: ${price(values[4])}`,
+    ].join("\n");
+  }
   return {
     id: delivery.id,
     eventId: delivery.outbox_id,
     eventType: delivery.event_type,
-    title: "Panther FX intelligence",
-    body: "A new update is available. Open your terminal to review it.",
+    title,
+    body,
     url: delivery.signal_id
       ? `/?view=Signals&signal=${encodeURIComponent(delivery.signal_id)}`
       : delivery.event_type.startsWith("news.")
