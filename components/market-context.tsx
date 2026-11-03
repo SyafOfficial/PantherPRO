@@ -1,4 +1,5 @@
 "use client";
+import { pricePips } from "@/lib/engine/config";
 import { useEffect, useState } from "react";
 import type { MT5Display } from "@/lib/engine/display";
 import { marketContext } from "@/lib/market-context";
@@ -217,30 +218,27 @@ export default function MarketContextPanel({
           <h3>Support & resistance</h3>
           {ready ? (
             <>
-              <p>
-                Close-origin support: <strong>{fmt(context.support)}</strong>
-              </p>
-              <p>
-                Close-origin resistance:{" "}
-                <strong>{fmt(context.resistance)}</strong>
-              </p>
+              <dl className="market-momentum">
+                <div>
+                  <dt>Support</dt>
+                  <dd className="bias-bullish">{fmt(context.support)}</dd>
+                </div>
+                <div>
+                  <dt>Resistance</dt>
+                  <dd className="bias-bearish">{fmt(context.resistance)}</dd>
+                </div>
+                <div>
+                  <dt>Timeframe</dt>
+                  <dd>{context.timeframe}</dd>
+                </div>
+                <div>
+                  <dt>Level basis</dt>
+                  <dd>BODY CLOSE</dd>
+                </div>
+              </dl>
               <small>
-                Latest intact close-based origin with a directional body move
-                and a close beyond prior structure. Wick extremes are excluded;
-                a completed close through the level invalidates it.
-              </small>
-              <p>
-                {context.levelEvidence.support
-                  ? `Support departure: ${fmt(context.levelEvidence.support.departure)} price units.`
-                  : "No qualifying support origin in this history."}{" "}
-                {context.levelEvidence.resistance
-                  ? `Resistance departure: ${fmt(context.levelEvidence.resistance.departure)} price units.`
-                  : "No qualifying resistance origin in this history."}
-              </p>
-              <small>
-                Confirmation requires two later candles, at least twice the
-                preceding median body displacement, and a directional body
-                impulse. A level does not guarantee a reversal.
+                Confirmed origins · invalidated by a candle close through the
+                level.
               </small>
             </>
           ) : (
@@ -250,18 +248,40 @@ export default function MarketContextPanel({
         <section className="panel content-panel">
           <h3>Volatility & data coverage</h3>
           {ready ? (
-            <p>
-              ATR14: <strong>{fmt(context.atr14)}</strong> price units
-            </p>
+            <dl className="market-momentum">
+              <div>
+                <dt>ATR14 · price</dt>
+                <dd>${fmt(context.atr14)}</dd>
+              </div>
+              <div>
+                <dt>ATR14 · pips</dt>
+                <dd>{pricePips(0, context.atr14)} pips</dd>
+              </div>
+              <div>
+                <dt>Candle period</dt>
+                <dd>{context.timeframe}</dd>
+              </div>
+              <div>
+                <dt>Source data</dt>
+                <dd>
+                  {fresh && context.status !== "stale" ? "CURRENT" : "STALE"}
+                </dd>
+              </div>
+              <div>
+                <dt>Coverage</dt>
+                <dd>CANDLES + QUOTES</dd>
+              </div>
+              <div>
+                <dt>Order flow</dt>
+                <dd>NOT CONNECTED</dd>
+              </div>
+            </dl>
           ) : (
-            <p>Volatility unavailable until enough history arrives.</p>
+            <p>At least 50 source candles are required.</p>
           )}
-          <p>
-            Order-book and aggressive buy/sell flow are not inferred from candle
-            colours.
-          </p>
           <small>
-            No confidence percentage or guaranteed outcome is generated.
+            Average range over 14 candles. $1 = 10 pips. Higher ATR means larger
+            movement, not BUY/SELL direction.
           </small>
         </section>
       </div>
