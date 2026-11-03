@@ -1,0 +1,88 @@
+/** Independent M5 tick-volume momentum technique. Observation only. */
+import { createHash } from "node:crypto";
+import { inspectMt5Snapshot, mt5SnapshotSchema } from "./mt5";
+import type { z } from "zod";
+type Bar = z.infer<
+  typeof mt5SnapshotSchema
+>["series"][number]["candles"][number];
+export const TICK_VOLUME_RULES = Object.freeze({
+  version: "tick-volume-momentum-v1",
+  lookback: 20,
+  minimumVolumeRatio: 1.5,
+  minimumBodyFraction: 0.6,
+  maximumClosingWickFraction: 0.2,
+});
+export function tickVolumeMomentum(bars: Bar[], serverTime: number) {
+  const rules = TICK_VOLUME_RULES;
+  const wait = (reason: string) => ({ direction: "WAIT" as const, reason });
+  if (!Number.isFinite(serverTime)) return wait("invalid_server_time");
+  const window = bars.slice(-(rules.lookback + 1));
+  if (window.length < rules.lookback + 1)
+    return wait("insufficient_m5_history");
+  if (
+    window.some(
+      (bar, i) =>
+        !Number.isFinite(bar.tick_volume) ||
+        bar.tick_volume <= 0 ||
+        (i > 0 &&
+          bar.opened_at_server_raw - window[i - 1].opened_at_server_raw !==
+            300),
+    )
+  )
+    return wait("missing_volume_or_noncontiguous_history");
+  const candle = window.at(-1)!;
+  const closedAt = candle.opened_at_server_raw + 300;
+  if (closedAt > serverTime || serverTime - closedAt >= 300)
+    return wait("latest_completed_m5_required");
+  // The signal candle is excluded from its own baseline; no future bars are used.
+  const mean =
+    window.slice(0, -1).reduce((sum, bar) => sum + bar.tick_volume, 0) /
+    rules.lookback;
+  const volumeRatio = candle.tick_volume / mean;
+  if (volumeRatio < rules.minimumVolumeRatio)
+    return wait("volume_below_threshold");
+  const range = candle.high - candle.low;
+  const body = Math.abs(candle.close - candle.open);
+  if (!(range > 0) || body / range < rules.minimumBodyFraction)
+    return wait("indecisive_candle");
+  const buy = candle.close > candle.open;
+  const closingWick = buy
+    ? candle.high - candle.close
+    : candle.close - candle.low;
+  if (closingWick / range > rules.maximumClosingWickFraction)
+    return wait("close_away_from_momentum_extreme");
+  return {
+    direction: buy ? ("BUY" as const) : ("SELL" as const),
+    reason: "volume_and_m5_momentum_confirmed",
+    closedAt,
+    referenceClose: candle.close,
+    volumeRatio,
+    baselineVolume: mean,
+    tickVolume: candle.tick_volume,
+  };
+}
+export function scanTickVolume(raw: unknown, now: number) {
+  const snapshot = mt5SnapshotSchema.parse(raw);
+  if (!inspectMt5Snapshot(snapshot, now).freshness.usableCurrentQuote)
+    throw new Error("Fresh broker feed required");
+  const decision = tickVolumeMomentum(
+    snapshot.series.find((series) => series.timeframe === "M5")!.candles,
+    snapshot.server_time_raw,
+  );
+  return {
+    version: TICK_VOLUME_RULES.version,
+    mode: "shadow_only" as const,
+    timeframe: "M5" as const,
+    symbol: snapshot.symbol,
+    ...decision,
+    candidateId:
+      decision.direction === "WAIT"
+        ? null
+        : createHash("sha256")
+            .update(
+              `${TICK_VOLUME_RULES.version}:${snapshot.symbol}:M5:${decision.closedAt}:${decision.direction}`,
+            )
+            .digest("hex"),
+    clientPublicationEnabled: false,
+  };
+}

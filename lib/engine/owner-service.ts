@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { scanTickVolume } from "./tick-volume";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mt5SnapshotSchema } from "./mt5";
 import {
@@ -18,6 +19,7 @@ export function createOwnerShadowCycle(db: SupabaseClient) {
     if (error || !data || Date.now() - Date.parse(data.received_at) > 30000)
       throw new Error("Bridge unavailable or stale; scan withheld");
     if (lastExport === data.exported_at) return { state: "unchanged" };
+    const tickVolume = scanTickVolume(data.snapshot, Date.now());
     const result = scanOwnerShadow(data.snapshot, Date.now());
     const storage = await db
       .from("owner_shadow_setups")
@@ -28,6 +30,7 @@ export function createOwnerShadowCycle(db: SupabaseClient) {
         state: "migration_required",
         setups: result.setups.length,
         reasons: result.reasons,
+        tickVolume,
       };
     }
     for (const setup of result.setups) {
@@ -84,6 +87,7 @@ export function createOwnerShadowCycle(db: SupabaseClient) {
       state: "observed",
       setups: result.setups.length,
       reasons: result.reasons,
+      tickVolume,
     };
   };
 }
