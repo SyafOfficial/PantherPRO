@@ -144,7 +144,7 @@ export default function NotificationSettings({
       const data = await response.json();
       setMessage(
         response.ok
-          ? `Test queued (${data.eventId}). Delivery is not yet confirmed; check the device and admin delivery log.`
+          ? "Test requested. Check your notifications."
           : (data.error ?? "Test failed."),
       );
     } catch {
