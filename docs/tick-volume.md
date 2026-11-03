@@ -1,10 +1,10 @@
 # Independent tick-volume momentum technique
 
-Status: shadow observations with structural SL/TP; no client signal, push notification or order is created by this technique.
+Status: policy-controlled automatic VIP signal publication with structural SL/TP. No broker order is placed.
 
-The owner worker scans this technique independently of QM, BOS, CHOCH, trendlines, higher-timeframe alignment, Daily availability and the owner's session filter. It reports `tickVolume` alongside the existing owner-cycle result. Existing signal publication behavior is unchanged.
+The automatic worker scans this technique independently of QM, BOS, CHOCH, trendlines, higher-timeframe alignment, Daily availability and the owner's session filter. The owner cycle also reports observations. Automatic publication uses a separate tick policy and the existing master pause control. Structural v1 publication remains unchanged.
 
-Provisional v1 conventions:
+Initial v1 rules:
 
 - Latest completed M5 candle, with its close less than 300 broker-server seconds old.
 - Twenty contiguous preceding M5 candles form the baseline; the signal candle is excluded.
@@ -13,10 +13,12 @@ Provisional v1 conventions:
 - Body must occupy at least 60% of candle range.
 - BUY requires bullish body and close within the upper 20% of range; SELL mirrors this.
 - Otherwise WAIT with an explicit reason. Fresh snapshot and quote are mandatory.
-- Candidate identity includes technique version, symbol, timeframe, candle close and direction. Repeated snapshots of one candle retain the same identity. Logs are observations, not durable notification deduplication.
+- Candidate identity includes technique version, symbol, timeframe, candle close and direction. Repeated snapshots of one candle retain the same identity. Published candidates are durably deduplicated by source event identity.
 
 Tick volume measures broker quote activity; it does not identify actual aggressive buy/sell trade volume or establish a probability of profit. Signal reference close is not an executable fill. Thresholds are initial hypotheses, not validated trading performance.
 
-The current worker checks its owner cycle about once per minute, not on every tick. SL uses the nearest intact confirmed support below a BUY entry or resistance above a SELL entry. TP1–TP3 use the nearest three distinct intact confirmed opposing levels across M5/M15/M30, sorted by distance. Confirmation uses two candles on each side of a swing; no future candles are allowed. Levels swept after confirmation are discarded. Entry reference uses current ask for BUY and bid for SELL. Missing stop or three distinct targets yields `withheld_missing_roadblocks` and no entry. No fixed TP distances or artificial levels are generated.
+The automatic cycle checks each fresh uploaded snapshot; owner diagnostics run about once per minute. SL uses the nearest intact confirmed support below a BUY entry or resistance above a SELL entry. TP1–TP3 use the nearest three distinct intact confirmed opposing levels across M5/M15/M30, sorted by distance. Confirmation uses two candles on each side of a swing; no future candles are allowed. Levels swept after confirmation are discarded. Entry reference uses current ask for BUY and bid for SELL. Missing stop or three distinct targets yields `withheld_missing_roadblocks` and no entry. No fixed TP distances or artificial levels are generated.
 
-Next steps before enabling client publication: evaluate historical and forward results, implement explicit entry validity and lifecycle processing, store candidates and lifecycle events with durable deduplication, and verify notification fanout. Existing database publication accepts only structural v1 metadata and must be extended deliberately; this code does not relabel tick volume as QM/BOS/CHOCH. Do not treat the technique as production signals yet.
+Publication revalidates the volume, candle, fresh quote and structural levels in the database. SELL also requires actual exit-side ask M5 evidence. Signals use the existing lifecycle monitor for target observations, M5-close stop observations and gap handling; events enter the durable VIP notification outbox exactly once. Public accounts cannot see these signals. Vestrado IB/deposit eligibility remains an administrative membership check, not an automatic broker integration.
+
+Policy is disabled by default in the migration and enabled only after deployment verification. The master automatic-engine pause stops new publications while continuing existing signal monitoring. Initial thresholds have not established historical or forward profitability.

@@ -1,3 +1,4 @@
+import { scanTickVolume } from "./tick-volume";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scanAutomatic, type AutomaticPlan } from "./automatic";
 export async function automaticEngineCycle(db: SupabaseClient) {
@@ -33,5 +34,33 @@ export async function automaticEngineCycle(db: SupabaseClient) {
     throw new Error(
       "Automatic engine transaction rejected; no partial publication",
     );
-  return { available: true, ...data };
+  // Structural monitoring always runs first; an independent tick failure must not roll it back.
+  let tickVolumePublished = 0;
+  let tickVolumeState = "paused";
+  if (policy.enabled) {
+    try {
+      const proposal = scanTickVolume(feed.snapshot, Date.now());
+      const { data: tick, error: tickError } = await db.rpc(
+        "apply_tick_volume",
+        {
+          export_time: feed.exported_at,
+          proposal,
+        },
+      );
+      if (tickError) tickVolumeState = "publication_unavailable";
+      else {
+        tickVolumePublished = tick?.published ?? 0;
+        tickVolumeState = tick?.reason ?? "processed";
+      }
+    } catch {
+      tickVolumeState = "snapshot_not_eligible";
+    }
+  }
+  return {
+    available: true,
+    ...data,
+    published: (data?.published ?? 0) + tickVolumePublished,
+    tickVolumePublished,
+    tickVolumeState,
+  };
 }

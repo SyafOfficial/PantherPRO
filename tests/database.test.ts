@@ -1531,3 +1531,218 @@ test("SELL automatic invalidation uses ask close above SL, never bid close", asy
   assert.equal(row.rows[0].outcome, null);
   await db.close();
 });
+
+import { scanTickVolume } from "../lib/engine/tick-volume";
+function tickFixture(sell = false) {
+  const server = Math.floor(Date.now() / 1000);
+  const candles = Array.from({ length: 50 }, (_, i) => {
+    const high =
+      i === 5
+        ? 2730
+        : i === 15
+          ? 2720
+          : i === 25
+            ? 2710
+            : i === 49
+              ? 2705
+              : 2706;
+    const low =
+      i === 10
+        ? 2680
+        : i === 20
+          ? 2685
+          : i === 35
+            ? 2690
+            : i === 49
+              ? 2699
+              : 2695;
+    const b = {
+      opened_at_server_raw: server - (50 - i) * 300,
+      open: 2700,
+      close: 2704,
+      high,
+      low,
+      tick_volume: i === 49 ? 150 : 100,
+      real_volume: null,
+      spread_points: 20,
+    };
+    return sell
+      ? {
+          ...b,
+          open: 5400 - b.open,
+          close: 5400 - b.close,
+          high: 5400 - b.low,
+          low: 5400 - b.high,
+        }
+      : b;
+  });
+  const exported = new Date(server * 1000)
+    .toISOString()
+    .slice(0, 19)
+    .replaceAll("-", ".")
+    .replace("T", " ");
+  return {
+    schema: "panther.mt5.snapshot.v1",
+    provider: "Vestrado MT5",
+    symbol: "XAUUSD.V",
+    exported_at_utc: exported,
+    bar_time_basis: "broker_server",
+    server_time_raw: server,
+    digits: 2,
+    point: 0.01,
+    quote: {
+      bid: sell ? 2696 : 2704,
+      ask: sell ? 2696.2 : 2704.2,
+      last_tick_time_raw: server,
+      last_tick_time_msc_raw: server * 1000,
+    },
+    series: ["M5", "M15", "M30", "H1", "H4", "W1", "MN1"].map((timeframe) => ({
+      timeframe,
+      availability: timeframe === "M5" ? "available" : "unavailable",
+      candles: timeframe === "M5" ? candles : [],
+    })),
+    ask_m5: sell
+      ? [
+          {
+            ...candles.at(-1)!,
+            open: candles.at(-1)!.open + 0.2,
+            close: candles.at(-1)!.close + 0.2,
+            high: candles.at(-1)!.high + 0.2,
+            low: candles.at(-1)!.low + 0.2,
+          },
+        ]
+      : [],
+    order_book: null,
+    aggressive_buy_sell_imbalance: null,
+    execution_enabled: false,
+  };
+}
+test("tick publication is VIP-only, duplicate-safe, structural and monitored through the existing lifecycle", async () => {
+  const db = await setup();
+  try {
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    await db.exec(
+      "update public.tick_volume_policy set enabled=true where singleton",
+    );
+    const snapshot = tickFixture();
+    const exportTime = new Date(snapshot.server_time_raw * 1000).toISOString();
+    await db.query(
+      "insert into public.mt5_bridge_latest(source,snapshot,exported_at,received_at) values('vestrado',$1,$2,now())",
+      [snapshot, exportTime],
+    );
+    const proposal = scanTickVolume(snapshot, Date.now());
+    assert.equal(proposal.status, "risk_ready");
+    const apply = () =>
+      db.query<{ r: { published: number } }>(
+        "select public.apply_tick_volume($1,$2) r",
+        [exportTime, proposal],
+      );
+    assert.equal((await apply()).rows[0].r.published, 1);
+    assert.equal((await apply()).rows[0].r.published, 0);
+    const row = (
+      await db.query<{ id: string; stop_loss: string; tp1: string }>(
+        "select * from public.signals where strategy='TICK_VOLUME'",
+      )
+    ).rows[0];
+    assert.equal(Number(row.stop_loss), 2690);
+    assert.equal(Number(row.tp1), 2710);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from public.notification_outbox where signal_id=$1 and event_type='signal.active' and access='vip'",
+          [row.id],
+        )
+      ).rows[0].n,
+      1,
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      0,
+    );
+    await assert.rejects(apply(), /permission denied/);
+    await as(db, "vip");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      1,
+    );
+    await as(db, "service_role");
+    // Update current observed quote to TP1 without inventing broker fills.
+    const next = structuredClone(snapshot);
+    next.quote.bid = 2710;
+    next.quote.ask = 2710.2;
+    const t2 = new Date(snapshot.server_time_raw * 1000 + 1000).toISOString();
+    await db.query(
+      "update public.mt5_bridge_latest set snapshot=$1,exported_at=$2,received_at=now() where source='vestrado'",
+      [next, t2],
+    );
+    await db.query("select public.apply_automatic_engine($1,'[]'::jsonb)", [
+      t2,
+    ]);
+    await db.query("select public.apply_automatic_engine($1,'[]'::jsonb)", [
+      t2,
+    ]);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from public.notification_outbox where signal_id=$1 and event_type='signal.tp1'",
+          [row.id],
+        )
+      ).rows[0].n,
+      1,
+    );
+  } finally {
+    await db.close();
+  }
+});
+test("tick publication blocks unconfirmed SELL evidence and disabled policy", async () => {
+  const db = await setup();
+  try {
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    const snapshot = tickFixture(true);
+    const proposal = scanTickVolume(snapshot, Date.now());
+    assert.equal(proposal.status, "risk_ready");
+    const t = new Date(snapshot.server_time_raw * 1000).toISOString();
+    snapshot.ask_m5 = [];
+    await db.query(
+      "insert into public.mt5_bridge_latest(source,snapshot,exported_at,received_at) values('vestrado',$1,$2,now())",
+      [snapshot, t],
+    );
+    const apply = () =>
+      db.query<{ r: { reason: string; published: number } }>(
+        "select public.apply_tick_volume($1,$2) r",
+        [t, proposal],
+      );
+    assert.equal((await apply()).rows[0].r.reason, "paused");
+    await db.exec(
+      "update public.tick_volume_policy set enabled=true where singleton",
+    );
+    assert.equal((await apply()).rows[0].r.reason, "sell_ask_history_missing");
+    snapshot.ask_m5 = tickFixture(true).ask_m5;
+    // Keep the evidence tied to the exact confirmation candle, independent of wall-clock drift.
+    snapshot.ask_m5[0].opened_at_server_raw =
+      snapshot.series[0].candles.at(-1)!.opened_at_server_raw;
+    await db.query(
+      "update public.mt5_bridge_latest set snapshot=$1 where source='vestrado'",
+      [snapshot],
+    );
+    const forged = structuredClone(proposal);
+    forged.risk!.stop += 1;
+    await assert.rejects(
+      db.query("select public.apply_tick_volume($1,$2)", [t, forged]),
+      /Structural levels mismatch/,
+    );
+    assert.equal((await apply()).rows[0].r.published, 1);
+    assert.equal((await apply()).rows[0].r.published, 0);
+    assert.equal(
+      (await db.query<{ n: number }>("select count(*)::int n from public.signals")).rows[0].n,
+      1,
+    );
+  } finally {
+    await db.close();
+  }
+});

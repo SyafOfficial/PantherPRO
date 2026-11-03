@@ -1,4 +1,4 @@
-/** Independent M5 tick-volume momentum technique. Observation only. */
+/** Independent M5 tick-volume momentum technique. Candidate calculation; publication requires an enabled server policy. */
 import { createHash } from "node:crypto";
 import { confirmedPivots } from "./structure";
 import { inspectMt5Snapshot, mt5SnapshotSchema } from "./mt5";
@@ -83,7 +83,7 @@ export function scanTickVolume(raw: unknown, now: number) {
         );
   return {
     version: TICK_VOLUME_RULES.version,
-    mode: "shadow_only" as const,
+    mode: "policy_controlled" as const,
     timeframe: "M5" as const,
     symbol: snapshot.symbol,
     ...decision,
@@ -103,7 +103,7 @@ export function scanTickVolume(raw: unknown, now: number) {
           : "withheld_missing_roadblocks",
     entry: decision.direction === "WAIT" || !risk ? null : entry,
     risk,
-    clientPublicationEnabled: false,
+    publicationRequiresPolicy: true,
   };
 }
 

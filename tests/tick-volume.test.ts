@@ -79,8 +79,8 @@ function snapshot() {
 test("scan needs no Daily, QM, BOS, CHOCH, trendline or session filter", () => {
   const result = scanTickVolume(snapshot(), server * 1000);
   assert.equal(result.direction, "BUY");
-  assert.equal(result.mode, "shadow_only");
-  assert.equal(result.clientPublicationEnabled, false);
+  assert.equal(result.mode, "policy_controlled");
+  assert.equal(result.publicationRequiresPolicy, true);
   assert.equal(
     result.candidateId,
     scanTickVolume(snapshot(), server * 1000 + 10000).candidateId,

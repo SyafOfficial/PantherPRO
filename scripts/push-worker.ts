@@ -99,11 +99,17 @@ async function cycle() {
   }
   try {
     const engine = await automaticEngineCycle(db);
-    if (engine.published || engine.events)
+    if (
+      engine.published ||
+      engine.events ||
+      engine.tickVolumeState === "publication_unavailable"
+    )
       console.info(
         JSON.stringify({
           component: "automatic_engine",
           published: engine.published ?? 0,
+          tickVolumePublished: engine.tickVolumePublished ?? 0,
+          tickVolumeState: engine.tickVolumeState,
           events: engine.events ?? 0,
         }),
       );

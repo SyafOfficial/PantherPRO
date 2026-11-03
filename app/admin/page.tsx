@@ -135,7 +135,10 @@ export default async function Admin({
           QM, BOS, CHOCH and trendline rules on M15–MN1. A completed M5 retest,
           aligned higher context and three structural targets are required.
           Entry zone ≤80 pips; SL buffer 30 pips outside the zone. No daily
-          signal quota.
+          signal quota. Independent tick-volume M5 signals use a 1.5× prior
+          20-bar volume threshold, momentum confirmation and intact M5/M15/M30
+          support/resistance for SL and three targets. Tick-volume signals are
+          VIP-only; this master publication control also pauses them.
         </p>
         <p>
           Signals use observed Vestrado prices, not broker fills. M5-close
