@@ -2798,3 +2798,12 @@ footer p {
 .calendar-extra-context[open] summary {
   margin-bottom: 20px;
 }
+
+.three-grid.market-analysis-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 900px) {
+  .three-grid.market-analysis-grid {
+    grid-template-columns: 1fr;
+  }
+}

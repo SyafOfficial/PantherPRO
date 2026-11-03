@@ -1,5 +1,4 @@
 "use client";
-import { pricePips } from "@/lib/engine/config";
 import { useEffect, useState } from "react";
 import type { MT5Display } from "@/lib/engine/display";
 import { marketContext } from "@/lib/market-context";
@@ -148,7 +147,7 @@ export default function MarketContextPanel({
           </p>
         )}
       </section>
-      <div className="three-grid">
+      <div className="three-grid market-analysis-grid">
         <section className="panel content-panel">
           <h3>Trend & momentum</h3>
           {ready ? (
@@ -239,45 +238,6 @@ export default function MarketContextPanel({
           ) : (
             <p>Insufficient source history for confirmed levels.</p>
           )}
-        </section>
-        <section className="panel content-panel">
-          <h3>Volatility & data coverage</h3>
-          {ready ? (
-            <dl className="market-momentum">
-              <div>
-                <dt>ATR14 · price</dt>
-                <dd>${fmt(context.atr14)}</dd>
-              </div>
-              <div>
-                <dt>ATR14 · pips</dt>
-                <dd>{pricePips(0, context.atr14)} pips</dd>
-              </div>
-              <div>
-                <dt>Candle period</dt>
-                <dd>{context.timeframe}</dd>
-              </div>
-              <div>
-                <dt>Source data</dt>
-                <dd>
-                  {fresh && context.status !== "stale" ? "CURRENT" : "STALE"}
-                </dd>
-              </div>
-              <div>
-                <dt>Coverage</dt>
-                <dd>CANDLES + QUOTES</dd>
-              </div>
-              <div>
-                <dt>Order flow</dt>
-                <dd>NOT CONNECTED</dd>
-              </div>
-            </dl>
-          ) : (
-            <p>At least 50 source candles are required.</p>
-          )}
-          <small>
-            Average range over 14 candles. $1 = 10 pips. Higher ATR means larger
-            movement, not BUY/SELL direction.
-          </small>
         </section>
       </div>
       <OfficialNewsPanel />
