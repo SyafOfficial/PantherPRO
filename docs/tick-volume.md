@@ -1,6 +1,6 @@
 # Independent tick-volume momentum technique
 
-Status: shadow observations only; no client signal, push notification, order, stop or target is created by this technique.
+Status: shadow observations with structural SL/TP; no client signal, push notification or order is created by this technique.
 
 The owner worker scans this technique independently of QM, BOS, CHOCH, trendlines, higher-timeframe alignment, Daily availability and the owner's session filter. It reports `tickVolume` alongside the existing owner-cycle result. Existing signal publication behavior is unchanged.
 
@@ -17,4 +17,6 @@ Provisional v1 conventions:
 
 Tick volume measures broker quote activity; it does not identify actual aggressive buy/sell trade volume or establish a probability of profit. Signal reference close is not an executable fill. Thresholds are initial hypotheses, not validated trading performance.
 
-The current worker checks its owner cycle about once per minute, not on every tick. Next steps before enabling client publication: evaluate historical and forward results, choose explicit entry validity/SL/TP rules for this independent technique, store candidates and lifecycle events with durable deduplication, and verify notification fanout. Do not treat the technique as production signals yet.
+The current worker checks its owner cycle about once per minute, not on every tick. SL uses the nearest intact confirmed support below a BUY entry or resistance above a SELL entry. TP1–TP3 use the nearest three distinct intact confirmed opposing levels across M5/M15/M30, sorted by distance. Confirmation uses two candles on each side of a swing; no future candles are allowed. Levels swept after confirmation are discarded. Entry reference uses current ask for BUY and bid for SELL. Missing stop or three distinct targets yields `withheld_missing_roadblocks` and no entry. No fixed TP distances or artificial levels are generated.
+
+Next steps before enabling client publication: evaluate historical and forward results, implement explicit entry validity and lifecycle processing, store candidates and lifecycle events with durable deduplication, and verify notification fanout. Existing database publication accepts only structural v1 metadata and must be extended deliberately; this code does not relabel tick volume as QM/BOS/CHOCH. Do not treat the technique as production signals yet.

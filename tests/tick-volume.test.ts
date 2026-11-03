@@ -90,3 +90,62 @@ test("scan needs no Daily, QM, BOS, CHOCH, trendline or session filter", () => {
     /Fresh broker/,
   );
 });
+
+import {
+  tickVolumeRisk,
+  tickVolumeLevels,
+  type TickRoadblock,
+} from "../lib/engine/tick-volume";
+test("BUY and SELL risk use nearest opposing support/resistance and three ordered roadblocks", () => {
+  const levels: TickRoadblock[] = [
+    { timeframe: "M5", kind: "support", price: 2698 },
+    { timeframe: "M15", kind: "support", price: 2690 },
+    { timeframe: "M30", kind: "support", price: 2680 },
+    { timeframe: "M5", kind: "resistance", price: 2705 },
+    { timeframe: "M15", kind: "resistance", price: 2710 },
+    { timeframe: "M30", kind: "resistance", price: 2720 },
+    { timeframe: "M30", kind: "resistance", price: 2705 },
+  ];
+  const buy = tickVolumeRisk("BUY", 2700.2, levels, 0.01)!;
+  assert.equal(buy.stop, 2698);
+  assert.deepEqual(buy.targets, [2705, 2710, 2720]);
+  const sell = tickVolumeRisk("SELL", 2700, levels, 0.01)!;
+  assert.equal(sell.stop, 2705);
+  assert.deepEqual(sell.targets, [2698, 2690, 2680]);
+  assert.equal(
+    tickVolumeRisk(
+      "BUY",
+      2700,
+      levels.filter((l) => l.price !== 2720),
+      0.01,
+    ),
+    null,
+  );
+});
+test("risk is withheld when no structural levels exist", () => {
+  const result = scanTickVolume(snapshot(), server * 1000);
+  assert.equal(result.status, "withheld_missing_roadblocks");
+  assert.equal(result.entry, null);
+  assert.equal(result.risk, null);
+});
+test("future and already swept pivots are excluded from roadblocks", () => {
+  const b = bars().slice(0, 7);
+  b.forEach((c, i) => Object.assign(c, { high: 2705 + (i === 2 ? 5 : 0) }));
+  const series = [
+    {
+      timeframe: "M5" as const,
+      availability: "available" as const,
+      candles: b,
+    },
+  ];
+  assert.ok(tickVolumeLevels(series, server).some((l) => l.price === 2710));
+  assert.equal(
+    tickVolumeLevels(series, b[3].opened_at_server_raw + 300).length,
+    0,
+  );
+  b[6].high = 2711;
+  assert.equal(
+    tickVolumeLevels(series, server).some((l) => l.price === 2710),
+    false,
+  );
+});

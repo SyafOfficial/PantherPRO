@@ -1,5 +1,6 @@
 /** Independent M5 tick-volume momentum technique. Observation only. */
 import { createHash } from "node:crypto";
+import { confirmedPivots } from "./structure";
 import { inspectMt5Snapshot, mt5SnapshotSchema } from "./mt5";
 import type { z } from "zod";
 type Bar = z.infer<
@@ -69,6 +70,17 @@ export function scanTickVolume(raw: unknown, now: number) {
     snapshot.series.find((series) => series.timeframe === "M5")!.candles,
     snapshot.server_time_raw,
   );
+  const entry =
+    decision.direction === "BUY" ? snapshot.quote.ask : snapshot.quote.bid;
+  const risk =
+    decision.direction === "WAIT"
+      ? null
+      : tickVolumeRisk(
+          decision.direction,
+          entry,
+          tickVolumeLevels(snapshot.series, decision.closedAt),
+          snapshot.point,
+        );
   return {
     version: TICK_VOLUME_RULES.version,
     mode: "shadow_only" as const,
@@ -83,6 +95,81 @@ export function scanTickVolume(raw: unknown, now: number) {
               `${TICK_VOLUME_RULES.version}:${snapshot.symbol}:M5:${decision.closedAt}:${decision.direction}`,
             )
             .digest("hex"),
+    status:
+      decision.direction === "WAIT"
+        ? "wait"
+        : risk
+          ? "risk_ready"
+          : "withheld_missing_roadblocks",
+    entry: decision.direction === "WAIT" || !risk ? null : entry,
+    risk,
     clientPublicationEnabled: false,
+  };
+}
+
+export type TickRoadblock = {
+  timeframe: "M5" | "M15" | "M30";
+  kind: "support" | "resistance";
+  price: number;
+};
+/** Only intact, confirmed swings qualify; consumed levels cannot become targets. */
+export function tickVolumeLevels(
+  series: z.infer<typeof mt5SnapshotSchema>["series"],
+  asOf: number,
+): TickRoadblock[] {
+  const levels: TickRoadblock[] = [];
+  for (const timeframe of ["M5", "M15", "M30"] as const) {
+    const duration = { M5: 300, M15: 900, M30: 1800 }[timeframe];
+    const bars =
+      series
+        .find((s) => s.timeframe === timeframe)
+        ?.candles.filter((b) => b.opened_at_server_raw + duration <= asOf) ??
+      [];
+    for (const pivot of confirmedPivots(bars, 2)) {
+      const crossed = bars
+        .slice(pivot.confirmedIndex + 1)
+        .some((b) =>
+          pivot.kind === "high" ? b.high >= pivot.price : b.low <= pivot.price,
+        );
+      if (!crossed)
+        levels.push({
+          timeframe,
+          kind: pivot.kind === "high" ? "resistance" : "support",
+          price: pivot.price,
+        });
+    }
+  }
+  return levels;
+}
+export function tickVolumeRisk(
+  direction: "BUY" | "SELL",
+  entry: number,
+  levels: TickRoadblock[],
+  point: number,
+) {
+  const buy = direction === "BUY";
+  const stops = levels
+    .filter(
+      (l) =>
+        l.kind === (buy ? "support" : "resistance") &&
+        (buy ? l.price < entry : l.price > entry),
+    )
+    .sort((a, b) => (buy ? b.price - a.price : a.price - b.price));
+  const targets = levels
+    .filter(
+      (l) =>
+        l.kind === (buy ? "resistance" : "support") &&
+        (buy ? l.price > entry : l.price < entry),
+    )
+    .sort((a, b) => (buy ? a.price - b.price : b.price - a.price))
+    .filter(
+      (l, i, a) => i === 0 || Math.abs(l.price - a[i - 1].price) >= point,
+    );
+  if (!stops.length || targets.length < 3) return null;
+  return {
+    stop: stops[0].price,
+    stopLevel: stops[0],
+    targets: targets.slice(0, 3).map((l) => l.price),
+    targetLevels: targets.slice(0, 3),
   };
 }
