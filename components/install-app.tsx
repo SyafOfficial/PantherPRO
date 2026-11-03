@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Download, Smartphone, Bell, ShieldCheck, Check } from "lucide-react";
+import { Download, Smartphone, Bell, Check } from "lucide-react";
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -180,14 +180,6 @@ export default function InstallApp() {
           Notification preferences <Bell size={15} />
         </Link>
       </section>
-      <div className="panel analysis-boundary">
-        <ShieldCheck size={24} />
-        <p>
-          No automatic trades or guaranteed returns. QM, BOS, CHOCH and
-          trendline are setup labels pending your method rules; the app does not
-          invent automatic detections.
-        </p>
-      </div>
       <Link className="secondary-button" href="/">
         Open signal terminal →
       </Link>
