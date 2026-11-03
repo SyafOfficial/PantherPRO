@@ -101,16 +101,19 @@ test("BUY and SELL risk use nearest opposing support/resistance and three ordere
     { timeframe: "M5", kind: "support", price: 2698 },
     { timeframe: "M15", kind: "support", price: 2690 },
     { timeframe: "M30", kind: "support", price: 2680 },
-    { timeframe: "M5", kind: "resistance", price: 2705 },
-    { timeframe: "M15", kind: "resistance", price: 2710 },
-    { timeframe: "M30", kind: "resistance", price: 2720 },
+    { timeframe: "M30", kind: "support", price: 2698 },
+    { timeframe: "H1", kind: "support", price: 2690 },
+    { timeframe: "M5", kind: "resistance", price: 2701 },
+    { timeframe: "M30", kind: "resistance", price: 2705 },
+    { timeframe: "H1", kind: "resistance", price: 2710 },
+    { timeframe: "H4", kind: "resistance", price: 2720 },
     { timeframe: "M30", kind: "resistance", price: 2705 },
   ];
   const buy = tickVolumeRisk("BUY", 2700.2, levels, 0.01)!;
   assert.equal(buy.stop, 2698);
   assert.deepEqual(buy.targets, [2705, 2710, 2720]);
   const sell = tickVolumeRisk("SELL", 2700, levels, 0.01)!;
-  assert.equal(sell.stop, 2705);
+  assert.equal(sell.stop, 2701);
   assert.deepEqual(sell.targets, [2698, 2690, 2680]);
   assert.equal(
     tickVolumeRisk(

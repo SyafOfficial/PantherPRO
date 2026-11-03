@@ -137,8 +137,9 @@ export default async function Admin({
           Entry zone ≤80 pips; SL buffer 30 pips outside the zone. No daily
           signal quota. Independent tick-volume M5 signals use a 1.5× prior
           20-bar volume threshold, momentum confirmation and intact M5/M15/M30
-          support/resistance for SL and three targets. Tick-volume signals are
-          VIP-only; this master publication control also pauses them.
+          support/resistance for SL; targets use intact M30/H1/H4 resistance for
+          BUY or support for SELL. Tick-volume signals are VIP-only; this master
+          publication control also pauses them.
         </p>
         <p>
           Signals use observed Vestrado prices, not broker fills. M5-close

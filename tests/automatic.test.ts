@@ -22,8 +22,8 @@ function fixture() {
     M5: lower,
     M15: setup,
     M30: higher,
-    H1: Array(30).fill(75),
-    H4: Array(30).fill(75),
+    H1: [78, 79, 95, 79, 78, 79, 90, 79, 78],
+    H4: [78, 79, 80, 82, 100, 82, 80, 79, 78],
     W1: Array(30).fill(75),
     MN1: Array(20).fill(75),
   };
@@ -118,7 +118,7 @@ test("automatic plan never chases entry, fabricates targets or uses stale data",
   assert.throws(() => scanAutomatic(data, now + 30001));
   const noRoadblocks = structuredClone(data);
   noRoadblocks.series
-    .find((s) => s.timeframe === "M5")!
+    .find((s) => s.timeframe === "H4")!
     .candles.slice(0, -1)
     .forEach((b) =>
       Object.assign(b, { open: 77, high: 77.1, low: 76.9, close: 77 }),
@@ -161,10 +161,13 @@ test("SELL publication requires genuinely supplied completed ask-side M5 evidenc
     ),
   );
 });
-test("confirmed targets are capped at setup timeframe roadblock and require distinct lower levels", () => {
+test("targets use only intact M30 H1 H4 levels rather than setup or M5 roadblocks", () => {
   const s = mt5SnapshotSchema.parse(fixture()),
     result = targetEvidence(s, "M15", true, 76.5, 78, confirmed);
   assert.ok(result);
+  assert.ok(
+    result.obstacles.every((o) => ["M30", "H1", "H4"].includes(o.timeframe)),
+  );
   assert.ok(
     result.obstacles.every(
       (o) => o.price < result.maximumTarget && o.price > 78,

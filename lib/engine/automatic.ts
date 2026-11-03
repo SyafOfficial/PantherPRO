@@ -1,3 +1,4 @@
+import { tickVolumeLevels } from "./tick-volume";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { TIMEFRAMES } from "../strategy";
@@ -150,47 +151,36 @@ export function targetEvidence(
   zoneHigh: number,
   asOf: number,
 ) {
-  const endpoint = buy ? zoneHigh : zoneLow,
-    sign = buy ? 1 : -1;
-  const of = (f: string) =>
-    snapshot.series
-      .find((s) => s.timeframe === f)!
-      .candles.filter((b) => endOf(b, f) <= asOf);
-  const setup = of(frame),
-    pivots = confirmedPivots(setup, 2)
-      .filter(
-        (p) =>
-          p.kind === (buy ? "high" : "low") && sign * (p.price - endpoint) > 0,
-      )
-      .sort((a, b) => sign * (a.price - b.price));
-  const maximum = pivots[0];
-  if (!maximum) return null;
-  const obstacles: SetupInput["obstacles"] = [];
-  for (const f of ["M5", "M15", "M30"] as const) {
-    const candles = of(f);
-    for (const p of confirmedPivots(candles, 2)) {
-      if (
-        p.kind !== (buy ? "high" : "low") ||
-        sign * (p.price - endpoint) <= 0 ||
-        sign * (maximum.price - p.price) <= 0
-      )
-        continue;
-      obstacles.push({
-        price: p.price,
-        timeframe: f,
-        confirmedAt: iso(endOf(candles[p.confirmedIndex], f)),
-        reason: `Confirmed ${f} ${buy ? "resistance" : "support"} pivot at ${p.price}.`,
-      });
-    }
-  }
-  const distinct = [...new Set(obstacles.map((o) => o.price))];
-  if (distinct.length < 2) return null;
+  const endpoint = buy ? zoneHigh : zoneLow;
+  const sign = buy ? 1 : -1;
+  const levels = tickVolumeLevels(snapshot.series, asOf)
+    .filter(
+      (l) =>
+        ["M30", "H1", "H4"].includes(l.timeframe) &&
+        l.kind === (buy ? "resistance" : "support") &&
+        sign * (l.price - endpoint) > 0,
+    )
+    .sort((a, b) => sign * (a.price - b.price))
+    .filter((l, i, a) => i === 0 || Math.abs(l.price - a[i - 1].price) > 1e-8);
+  if (levels.length < 3) return null;
+  const selected = levels.slice(0, 3);
+  const evidence = (l: (typeof selected)[number]) => ({
+    price: l.price,
+    timeframe: l.timeframe as "M30" | "H1" | "H4",
+    confirmedAt: iso(asOf),
+    reason: `Intact confirmed ${l.timeframe} ${buy ? "resistance" : "support"} at ${l.price}.`,
+  });
   return {
-    maximumTarget: maximum.price,
-    maximumTargetReason: `Nearest confirmed ${frame} ${buy ? "resistance" : "support"} bounds TP3.`,
-    maximumTargetConfirmedAt: iso(endOf(setup[maximum.confirmedIndex], frame)),
-    obstacles,
+    maximumTarget: selected[2].price,
+    maximumTargetReason: evidence(selected[2]).reason,
+    maximumTargetConfirmedAt: iso(asOf),
+    obstacles: selected.slice(0, 2).map(evidence),
   };
+}
+function candidateTargetText(
+  t: NonNullable<ReturnType<typeof targetEvidence>>,
+) {
+  return [...t.obstacles.map((o) => o.reason), t.maximumTargetReason].join(" ");
 }
 export function scanAutomatic(raw: unknown, now: number) {
   const s = mt5SnapshotSchema.parse(raw),
@@ -302,7 +292,7 @@ export function scanAutomatic(raw: unknown, now: number) {
               breakout: virtualCandle(breakBar, frame),
               retestM5: virtualCandle(confirm, "M5"),
               ...targets,
-              reason: `Automatic ${trigger.method} ${frame} ${buy ? "BUY" : "SELL"}: completed setup candle and M5 pullback held ${level.toFixed(s.digits)}; entry remains inside ${zoneLow}-${zoneHigh}. ${higher ? `${higher} structure aligns.` : "Monthly is the highest configured setup."} Tick activity ratio ${ratio === null ? "unavailable" : ratio.toFixed(2)}; aggressive imbalance unavailable. News feed unavailable. SL requires M5 close ${buy ? "below" : "above"} ${((buy ? zoneLow : zoneHigh) + (buy ? -3 : 3)).toFixed(s.digits)}. Trade at your own risk with proper money management.`,
+              reason: `Automatic ${trigger.method} ${frame} ${buy ? "BUY" : "SELL"}: completed setup candle and M5 pullback held ${level.toFixed(s.digits)}; entry remains inside ${zoneLow}-${zoneHigh}. ${higher ? `${higher} structure aligns.` : "Monthly is the highest configured setup."} Tick activity ratio ${ratio === null ? "unavailable" : ratio.toFixed(2)}; aggressive imbalance unavailable. News feed unavailable. SL requires M5 close ${buy ? "below" : "above"} ${((buy ? zoneLow : zoneHigh) + (buy ? -3 : 3)).toFixed(s.digits)}. TP1–TP3: ${candidateTargetText(targets)} Trade at your own risk with proper money management.`,
               config: {
                 pipSize: 0.1,
                 maxZonePips: 80,

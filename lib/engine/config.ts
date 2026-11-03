@@ -15,3 +15,12 @@ export function priceDistance(pips: number) {
     throw new Error("Invalid pip distance");
   return pips * VESTRADO_RULES.pipSize;
 }
+
+/** XAUUSD owner convention: $1 price movement equals ten pips. */
+export function pricePips(entry: number, level: number) {
+  if (!Number.isFinite(entry) || !Number.isFinite(level))
+    throw new Error("Invalid price");
+  return (
+    Math.round((Math.abs(level - entry) / VESTRADO_RULES.pipSize) * 10) / 10
+  );
+}

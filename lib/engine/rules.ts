@@ -33,7 +33,7 @@ const configSchema = z
 const obstacleSchema = z
   .object({
     price: z.number().positive().finite(),
-    timeframe: z.enum(["M5", "M15", "M30"]),
+    timeframe: z.enum(["M5", "M15", "M30", "H1", "H4"]),
     confirmedAt: z.iso.datetime({ offset: true }),
     reason: z.string().trim().min(10),
   })

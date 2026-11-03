@@ -1264,6 +1264,18 @@ async function autoFixture(db: PGlite, options: { ask?: boolean } = {}) {
         timeframe: "M5",
         candles: [candle(offset ? stamp + 300 : stamp, close)],
       },
+      ...[
+        { timeframe: "M30", duration: 1800, high: 105, low: 95 },
+        { timeframe: "H1", duration: 3600, high: 110, low: 90 },
+        { timeframe: "H4", duration: 14400, high: 120, low: 80 },
+      ].map((f) => ({
+        timeframe: f.timeframe,
+        candles: Array.from({ length: 5 }, (_, i) => ({
+          ...candle(stamp + 300 - (5 - i) * f.duration),
+          high: i === 2 ? f.high : 101,
+          low: i === 2 ? f.low : 99,
+        })),
+      })),
     ],
     ...(options.ask
       ? { ask_m5: [candle(offset ? stamp + 300 : stamp, close)] }
@@ -1316,6 +1328,13 @@ test("automatic policy requires MFA admin; engine publication and outbox are ato
       "select public.apply_automatic_engine($1,$2) result",
       [time, JSON.stringify([f.plan])],
     );
+  await assert.rejects(
+    db.query("select public.apply_automatic_engine($1,$2)", [
+      time,
+      JSON.stringify([{ ...f.plan, targets: [103, 104, 105] }]),
+    ]),
+    /Higher timeframe targets mismatch/,
+  );
   assert.equal((await apply()).rows[0].result.published, 1);
   assert.equal((await apply()).rows[0].result.published, 0);
   await as(db, "admin");
@@ -1598,8 +1617,18 @@ function tickFixture(sell = false) {
     },
     series: ["M5", "M15", "M30", "H1", "H4", "W1", "MN1"].map((timeframe) => ({
       timeframe,
-      availability: timeframe === "M5" ? "available" : "unavailable",
-      candles: timeframe === "M5" ? candles : [],
+      availability: ["M5", "M30"].includes(timeframe)
+        ? "available"
+        : "unavailable",
+      candles:
+        timeframe === "M5"
+          ? candles
+          : timeframe === "M30"
+            ? candles.map((b, i) => ({
+                ...b,
+                opened_at_server_raw: server - (50 - i) * 1800,
+              }))
+            : [],
     })),
     ask_m5: sell
       ? [
@@ -1739,7 +1768,11 @@ test("tick publication blocks unconfirmed SELL evidence and disabled policy", as
     assert.equal((await apply()).rows[0].r.published, 1);
     assert.equal((await apply()).rows[0].r.published, 0);
     assert.equal(
-      (await db.query<{ n: number }>("select count(*)::int n from public.signals")).rows[0].n,
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from public.signals",
+        )
+      ).rows[0].n,
       1,
     );
   } finally {

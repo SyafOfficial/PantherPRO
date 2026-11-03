@@ -108,7 +108,7 @@ export function scanTickVolume(raw: unknown, now: number) {
 }
 
 export type TickRoadblock = {
-  timeframe: "M5" | "M15" | "M30";
+  timeframe: "M5" | "M15" | "M30" | "H1" | "H4";
   kind: "support" | "resistance";
   price: number;
 };
@@ -118,8 +118,10 @@ export function tickVolumeLevels(
   asOf: number,
 ): TickRoadblock[] {
   const levels: TickRoadblock[] = [];
-  for (const timeframe of ["M5", "M15", "M30"] as const) {
-    const duration = { M5: 300, M15: 900, M30: 1800 }[timeframe];
+  for (const timeframe of ["M5", "M15", "M30", "H1", "H4"] as const) {
+    const duration = { M5: 300, M15: 900, M30: 1800, H1: 3600, H4: 14400 }[
+      timeframe
+    ];
     const bars =
       series
         .find((s) => s.timeframe === timeframe)
@@ -151,6 +153,7 @@ export function tickVolumeRisk(
   const stops = levels
     .filter(
       (l) =>
+        ["M5", "M15", "M30"].includes(l.timeframe) &&
         l.kind === (buy ? "support" : "resistance") &&
         (buy ? l.price < entry : l.price > entry),
     )
@@ -158,6 +161,7 @@ export function tickVolumeRisk(
   const targets = levels
     .filter(
       (l) =>
+        ["M30", "H1", "H4"].includes(l.timeframe) &&
         l.kind === (buy ? "resistance" : "support") &&
         (buy ? l.price > entry : l.price < entry),
     )

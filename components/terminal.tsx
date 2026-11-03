@@ -1,4 +1,5 @@
 "use client";
+import { pricePips } from "@/lib/engine/config";
 import { useEffect, useState } from "react";
 import MT5Chart from "@/components/mt5-chart";
 import MarketContextPanel, {
@@ -1018,6 +1019,11 @@ function SignalCard({
                     maximumFractionDigits: 2,
                   })}
             </strong>
+            {i > 0 && (
+              <small>
+                {pricePips(Number(s.entry), Number(value))} pips from entry
+              </small>
+            )}
           </div>
         ))}
       </div>
