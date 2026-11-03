@@ -59,7 +59,7 @@ export async function forexFactoryCalendar(
 ) {
   const response = await fetcher(FOREX_FACTORY_FEED, {
     redirect: "error",
-    signal: AbortSignal.timeout(6000),
+    signal: AbortSignal.timeout(15000),
     next: { revalidate: CALENDAR_REFRESH_SECONDS },
   });
   if (!response.ok) throw new Error("Calendar source unavailable");
@@ -93,4 +93,4 @@ export async function forexFactoryCalendar(
 }
 export type ForexFactoryCalendar = Awaited<
   ReturnType<typeof forexFactoryCalendar>
->;
+> & { cache_status?: "fresh" | "stale" };

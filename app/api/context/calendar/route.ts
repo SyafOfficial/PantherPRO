@@ -1,14 +1,9 @@
+import { after } from "next/server";
 import { identity } from "@/lib/supabase";
-import { scraperCalendar } from "@/lib/forex-factory-scraper";
-import {
-  CALENDAR_REFRESH_SECONDS,
-  forexFactoryCalendar,
-} from "@/lib/forex-factory";
+import { serviceDb } from "@/lib/service-db";
+import { createCalendarDisplayRefresh } from "@/lib/calendar-display-cache";
 export const dynamic = "force-dynamic";
-let cached: {
-  until: number;
-  value: Promise<Awaited<ReturnType<typeof forexFactoryCalendar>> | null>;
-} | null = null;
+let refresh: ReturnType<typeof createCalendarDisplayRefresh> | null = null;
 export async function GET() {
   const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
   if (!(await identity()))
@@ -16,26 +11,49 @@ export async function GET() {
       { error: "Sign in required" },
       { status: 401, headers },
     );
-  // Cache failures too: repeated visitors must not hammer the upstream feed.
-  if (!cached || Date.now() >= cached.until)
-    cached = {
-      until:
-        Date.now() +
-        (process.env.FF_SCRAPER_API_URL ? 300 : CALENDAR_REFRESH_SECONDS) *
-          1000,
-      value: (process.env.FF_SCRAPER_API_URL
-        ? scraperCalendar(
-            process.env.FF_SCRAPER_API_URL,
-            process.env.FF_SCRAPER_AUTH_TOKEN,
-          )
-        : forexFactoryCalendar()
-      ).catch(() => null),
-    };
-  const calendar = await cached.value;
-  return calendar
-    ? Response.json(calendar, { headers })
-    : Response.json(
-        { error: "Forex Factory calendar unavailable" },
-        { status: 503, headers },
-      );
+  const db = serviceDb();
+  refresh ??= createCalendarDisplayRefresh(db, {
+    url: process.env.FF_SCRAPER_API_URL,
+    token: process.env.FF_SCRAPER_AUTH_TOKEN,
+  });
+  const read = () =>
+    db
+      .from("calendar_display_cache")
+      .select("payload,fetched_at")
+      .eq("singleton", true)
+      .maybeSingle();
+  let { data, error } = await read();
+  if (error)
+    return Response.json(
+      { error: "Calendar cache unavailable" },
+      { status: 503, headers },
+    );
+  if (!data) {
+    try {
+      await refresh();
+      ({ data } = await read());
+    } catch {
+      /* No fabricated schedule when both sources fail. */
+    }
+  }
+  if (!data)
+    return Response.json(
+      { error: "Calendar source unavailable; retry shortly" },
+      { status: 503, headers },
+    );
+  const age = Date.now() - Date.parse(data.fetched_at);
+  if (age > 15 * 60000)
+    after(async () => {
+      try {
+        await refresh!();
+      } catch {
+        console.warn(
+          "Calendar background refresh unavailable; last verified schedule retained.",
+        );
+      }
+    });
+  return Response.json(
+    { ...data.payload, cache_status: age > 2 * 3600000 ? "stale" : "fresh" },
+    { headers },
+  );
 }

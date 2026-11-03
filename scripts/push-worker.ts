@@ -1,3 +1,4 @@
+import { createCalendarDisplayRefresh } from "../lib/calendar-display-cache";
 import { ownerShadowFailure } from "../lib/engine/owner-service";
 import { createOwnerShadowCycle } from "../lib/engine/owner-service";
 import { automaticEngineCycle } from "../lib/engine/service";
@@ -62,9 +63,19 @@ async function finish(item: Delivery, state: string, code?: string) {
   if (!saved)
     console.warn(JSON.stringify({ deliveryId: item.id, state: "lease_lost" }));
 }
+const refreshCalendarDisplay = createCalendarDisplayRefresh(db, {
+  url: process.env.FF_SCRAPER_API_URL,
+  token: process.env.FF_SCRAPER_AUTH_TOKEN,
+});
 const ownerShadowCycle = createOwnerShadowCycle(db);
 let ownerCheckedAt = 0;
 async function cycle() {
+  // Do not make engine/push processing wait on external calendar requests.
+  void refreshCalendarDisplay().catch(() =>
+    console.warn(
+      "Calendar display refresh unavailable; cached schedule retained.",
+    ),
+  );
   if (Date.now() - ownerCheckedAt >= 60000) {
     ownerCheckedAt = Date.now();
     try {

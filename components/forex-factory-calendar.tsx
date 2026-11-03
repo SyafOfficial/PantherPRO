@@ -21,6 +21,7 @@ export default function ForexFactoryCalendarPanel() {
     day = selectedDay ?? today;
   const daily = dailyCalendar(calendar?.events ?? [], day, impact);
   const outdated = calendarWeekOutdated(calendar?.events ?? [], today);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     let stopped = false,
       fetching = false;
@@ -69,7 +70,7 @@ export default function ForexFactoryCalendarPanel() {
       clearInterval(clock);
       document.removeEventListener("visibilitychange", resume);
     };
-  }, []);
+  }, [retry]);
   const dateLabel = new Intl.DateTimeFormat("en-MY", {
     timeZone: "Asia/Kuala_Lumpur",
     weekday: "long",
@@ -182,7 +183,9 @@ export default function ForexFactoryCalendarPanel() {
           <span>
             {calendar
               ? `${calendar.source_name} · checked ${malaysiaTime(calendar.fetched_at)} MYT`
-              : "Connecting to calendar source…"}
+              : failed
+                ? "Calendar source unavailable"
+                : "Loading saved calendar…"}
           </span>
           <a
             href={
@@ -200,8 +203,22 @@ export default function ForexFactoryCalendarPanel() {
         </small>
         {failed && (
           <p className="calendar-feed-warning" role="status">
-            Source unavailable. Saved events may be outdated; figures cannot be
-            verified.
+            Unable to refresh the source. Last loaded events may be outdated.
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                setFailed(false);
+                setRetry((n) => n + 1);
+              }}
+            >
+              Retry now
+            </button>
+          </p>
+        )}
+        {calendar?.cache_status === "stale" && (
+          <p className="calendar-feed-warning" role="status">
+            Showing the last verified schedule. Background refresh is pending.
           </p>
         )}
         {outdated && (
