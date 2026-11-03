@@ -462,8 +462,12 @@ export default function Terminal({
                 <section className="panel chart-panel">
                   <div className="panel-heading">
                     <div className="instrument-heading">
-                      <span className="instrument-symbol">
-                        Au<small>79</small>
+                      <span className="instrument-symbol" role="img" aria-label="Gold bullion">
+                        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                          <path d="M7 13h18l4 12H3l4-12Z" fill="currentColor" fillOpacity=".18" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                          <path d="m7 13 5-6h9l4 6M12 7l-2 6m11-6 2 6M3 25l7-5h13l6 5M10 13v7m13-7v7" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                          <path d="M14 16h5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                        </svg>
                       </span>
                       <div>
                         <h2>
