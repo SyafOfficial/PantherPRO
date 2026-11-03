@@ -1,5 +1,6 @@
+import { bodyOriginLevels } from "./body-levels";
 import { quoteFreshness } from "./market-data";
-import { confirmedPivots, detectStructure } from "./engine/structure";
+import { detectStructure } from "./engine/structure";
 import type { MT5Display } from "./engine/display";
 function ema(values: number[], period: number) {
   let result = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
@@ -36,16 +37,10 @@ export function marketContext(data: MT5Display, now: number) {
   const closes = data.bars.map((b) => b.close),
     fast = ema(closes, 20),
     slow = ema(closes, 50),
-    structure = detectStructure(data.bars).trend,
-    pivots = confirmedPivots(data.bars);
-  const support =
-    pivots
-      .filter((p) => p.kind === "low" && p.price < data.quote.bid)
-      .sort((a, b) => b.price - a.price)[0]?.price ?? null;
-  const resistance =
-    pivots
-      .filter((p) => p.kind === "high" && p.price > data.quote.bid)
-      .sort((a, b) => a.price - b.price)[0]?.price ?? null;
+    structure = detectStructure(data.bars).trend;
+  const origins = bodyOriginLevels(data.bars, data.quote.bid);
+  const support = origins.support?.price ?? null;
+  const resistance = origins.resistance?.price ?? null;
   const ranges = data.bars
     .slice(1)
     .map((b, i) =>
@@ -77,6 +72,7 @@ export function marketContext(data: MT5Display, now: number) {
     atr14: atr,
     support,
     resistance,
+    levelEvidence: origins,
     bars: data.bars.length,
     meaning: "Closed-candle context only; not an entry signal or prediction.",
   };

@@ -182,14 +182,29 @@ export default function MarketContextPanel({
           {ready ? (
             <>
               <p>
-                Confirmed support: <strong>{fmt(context.support)}</strong>
+                Close-origin support: <strong>{fmt(context.support)}</strong>
               </p>
               <p>
-                Confirmed resistance: <strong>{fmt(context.resistance)}</strong>
+                Close-origin resistance:{" "}
+                <strong>{fmt(context.resistance)}</strong>
               </p>
               <small>
-                Nearest confirmed pivots in the available history. A level is
-                not a guaranteed reversal.
+                Latest intact close-based origin with a directional body move
+                and a close beyond prior structure. Wick extremes are excluded;
+                a completed close through the level invalidates it.
+              </small>
+              <p>
+                {context.levelEvidence.support
+                  ? `Support departure: ${fmt(context.levelEvidence.support.departure)} price units.`
+                  : "No qualifying support origin in this history."}{" "}
+                {context.levelEvidence.resistance
+                  ? `Resistance departure: ${fmt(context.levelEvidence.resistance.departure)} price units.`
+                  : "No qualifying resistance origin in this history."}
+              </p>
+              <small>
+                Confirmation requires two later candles, at least twice the
+                preceding median body displacement, and a directional body
+                impulse. A level does not guarantee a reversal.
               </small>
             </>
           ) : (
