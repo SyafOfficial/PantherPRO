@@ -141,11 +141,6 @@ export default function MarketContextPanel({
         {data ? (
           <>
             <MT5Chart data={data} fresh={fresh} />
-            <small>
-              {data.quote.source_name} · observed{" "}
-              {malaysiaTime(data.exported_at)} MYT · broker candle times ·
-              snapshots about 10 seconds
-            </small>
           </>
         ) : (
           <p>
