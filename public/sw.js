@@ -97,13 +97,7 @@ self.addEventListener("push", (event) => {
         ["signal.tp1", ["HIT TP 1 Lads!", "Collect half now and Set BE"]],
         ["signal.tp2", ["HIT TP 2 Lads!", "Collect half now and Set BE"]],
         ["signal.tp3", ["HIT TP3!", "CLOSE ALL NOW"]],
-        [
-          "signal.stop_hit",
-          [
-            "SL confirmed · Panther FX",
-            "M5 closed beyond the signal stop level. Open your terminal for details.",
-          ],
-        ],
+        ["signal.stop_hit", ["HIT SL!", "Ready for recovery"]],
         [
           "signal.break_even",
           [

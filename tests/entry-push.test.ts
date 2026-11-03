@@ -100,4 +100,11 @@ test("device worker renders multiline entry prices and exact TP1 management text
   });
   assert.equal(shown[3].title, "HIT TP3!");
   assert.equal(shown[3].options.body, "CLOSE ALL NOW");
+  await push({
+    ...notificationPayload(delivery),
+    id: "delivery-test5",
+    eventType: "signal.stop_hit",
+  });
+  assert.equal(shown[4].title, "HIT SL!");
+  assert.equal(shown[4].options.body, "Ready for recovery");
 });

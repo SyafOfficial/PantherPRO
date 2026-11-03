@@ -219,7 +219,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
     [80, "signal.tp1", "HIT TP 1 Lads!"],
     [81, "signal.tp2", "HIT TP 2 Lads!"],
     [82, "signal.tp3", "HIT TP3!"],
-    [83, "signal.stop_hit", "SL confirmed · Panther FX"],
+    [83, "signal.stop_hit", "HIT SL!"],
     [84, "signal.break_even", "Trade management · Panther FX"],
   ] as const) {
     await page.evaluate(async () => {
