@@ -1090,27 +1090,46 @@ function SignalCard({
               <strong>{String(s.higher_timeframe ?? "Not Supplied")}</strong>
             </span>
           </div>
-          <div className="detail-grid">
-            {[
-              ["TP1", s.tp1_hit_at],
-              ["TP2", s.tp2_hit_at],
-              ["TP3", s.tp3_hit_at],
-              ["SL", s.stop_observed_at],
-              ["BE", s.break_even],
-            ].map(([label, hit]) => (
-              <span key={String(label)}>
+          <div className="setup-level-columns">
+            <div className="setup-level-column">
+              <h5>Take Profit</h5>
+              {(["tp1", "tp2", "tp3"] as const).map((key, i) => (
+                <div className="setup-level-row" key={key}>
+                  <span>TP{i + 1}</span>
+                  <strong>{Number(s[key]).toFixed(2)}</strong>
+                  <small
+                    className={s[`${key}_hit_at`] && !demo ? "level-hit" : ""}
+                  >
+                    {demo
+                      ? "Not Evaluated"
+                      : s[`${key}_hit_at`]
+                        ? "Hit"
+                        : s.status === "closed"
+                          ? "No Hit"
+                          : "Pending"}
+                  </small>
+                </div>
+              ))}
+            </div>
+            <div className="setup-level-column">
+              <h5>SL &amp; BE</h5>
+              <div className="setup-level-row protection-level">
+                <span>SL</span>
+                <strong>{Number(s.stop_loss).toFixed(2)}</strong>
+              </div>
+              <div className="setup-level-row protection-level">
+                <span>BE</span>
                 <strong>
-                  {String(label)}{" "}
-                  {demo
-                    ? "Not Evaluated"
-                    : hit
-                      ? "Hit"
-                      : s.status === "closed"
-                        ? "No Hit"
-                        : "Pending"}
+                  {s.engine_version &&
+                  s.entry_low != null &&
+                  s.entry_high != null
+                    ? Number(s.entry_low) === Number(s.entry_high)
+                      ? Number(s.entry_low).toFixed(2)
+                      : `${Number(s.entry_low).toFixed(2)} – ${Number(s.entry_high).toFixed(2)}`
+                    : Number(s.entry).toFixed(2)}
                 </strong>
-              </span>
-            ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
