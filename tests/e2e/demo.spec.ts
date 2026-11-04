@@ -17,7 +17,7 @@ test("desktop demo is honest, interactive and error-free", async ({ page }) => {
     .getByRole("button", { name: "View reasoning", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Signal reasoning" }),
+    page.getByRole("heading", { name: "Setup Insight" }),
   ).toBeVisible();
   await page.getByLabel("Filter signal status").selectOption("Closed");
   await expect(
