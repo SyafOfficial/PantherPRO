@@ -1,6 +1,7 @@
 import { scanTickVolume } from "./tick-volume";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { scanAutomatic, type AutomaticPlan } from "./automatic";
+import type { AutomaticPlan } from "./automatic";
+import { scanLiveAutomatic } from "./trendline-live";
 export async function automaticEngineCycle(db: SupabaseClient) {
   const { data: policy, error: policyError } = await db
     .from("automatic_engine_policy")
@@ -22,7 +23,8 @@ export async function automaticEngineCycle(db: SupabaseClient) {
     return { available: true, reason: "feed_unavailable_or_stale" };
   let plans: AutomaticPlan[] = [];
   try {
-    if (policy.enabled) plans = scanAutomatic(feed.snapshot, Date.now()).plans;
+    if (policy.enabled)
+      plans = scanLiveAutomatic(feed.snapshot, Date.now()).plans;
   } catch {
     return { available: true, reason: "snapshot_not_eligible" };
   }

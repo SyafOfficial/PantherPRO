@@ -1943,3 +1943,86 @@ test("wide zone needs a genuine outside-then-return after 50 pips before BE clos
   );
   await db.close();
 });
+
+test("trendline structural stops are recomputed from snapshot evidence and cannot be forged", async () => {
+  const { fixture, mirror } = await import("./helpers/trendline-fixture");
+  const { previewTrendline } = await import("../lib/engine/trendline-preview");
+  const db = await setup();
+  for (const x of [
+    fixture(),
+    mirror(fixture()),
+    fixture(true),
+    mirror(fixture(true)),
+  ]) {
+    const [proposal] = previewTrendline(x);
+    assert.ok(proposal);
+    const snapshot = {
+      series: [
+        { timeframe: "M15", candles: x.setupBars },
+        { timeframe: "M5", candles: x.m5Bars },
+      ],
+      quote: { bid: x.bid, ask: x.ask },
+      point: x.point,
+    };
+    const plan = {
+      method: "TRENDLINE",
+      timeframe: "M15",
+      direction: proposal.direction,
+      zoneLow: proposal.zoneLow,
+      zoneHigh: proposal.zoneHigh,
+      stop: proposal.stop,
+      targets: [proposal.target],
+      confirmationOpenedServer: proposal.confirmationOpened,
+      breakoutOpenedServer: proposal.eventOpened,
+      trendline: {
+        version: proposal.version,
+        subtype: proposal.subtype,
+        anchors: proposal.anchors,
+        eventOpened: proposal.eventOpened,
+        confirmationOpened: proposal.confirmationOpened,
+      },
+    };
+    const check = async (value: unknown) =>
+      (
+        await db.query<{ valid: boolean }>(
+          "select public.valid_trendline_v2_plan($1,$2) valid",
+          [JSON.stringify(snapshot), JSON.stringify(value)],
+        )
+      ).rows[0].valid;
+    assert.equal(await check(plan), true);
+    assert.equal(await check({ ...plan, stop: plan.stop + 1 }), false);
+    assert.equal(
+      await check({
+        ...plan,
+        trendline: { ...plan.trendline, anchors: [1, proposal.anchors[1]] },
+      }),
+      false,
+    );
+    assert.equal(await check({ ...plan, zoneLow: plan.zoneLow - 0.1 }), false);
+    assert.equal(
+      await check({
+        ...plan,
+        trendline: { ...plan.trendline, subtype: "invalid" },
+      }),
+      false,
+    );
+    assert.equal(await check({ ...plan, targets: [proposal.entry] }), false);
+  }
+  assert.equal(
+    (
+      await db.query<{ allowed: boolean }>(
+        "select has_function_privilege('anon','public.valid_trendline_v2_plan(jsonb,jsonb)','execute') allowed",
+      )
+    ).rows[0].allowed,
+    false,
+  );
+  assert.equal(
+    (
+      await db.query<{ allowed: boolean }>(
+        "select has_function_privilege('authenticated','public.valid_trendline_v2_plan(jsonb,jsonb)','execute') allowed",
+      )
+    ).rows[0].allowed,
+    false,
+  );
+  await db.close();
+});

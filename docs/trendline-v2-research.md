@@ -1,8 +1,10 @@
 # Trendline V2: Bounce and Breakout + Retest
 
-Status: research preview; **not connected to live publication**. The existing
-production detector is unchanged. Synthetic tests establish rule behavior, not
-trading profitability.
+Status: live team-pilot implementation, authorized by the owner. The pure detector
+and snapshot CLI remain usable offline; `lib/engine/trendline-live.ts` adapts the
+proposals to the existing publication protocol. `automaticEngineCycle` selects
+this adapter in production. Synthetic tests establish rule behavior, not trading
+profitability. Historical performance has not been validated.
 
 ## What was found
 
@@ -85,7 +87,7 @@ A saved production snapshot exported at 2026-11-04 13:45:25 UTC was processed
 successfully and produced zero eligible proposals. This is a format/integration
 check, not a backtest and not a measure of accuracy.
 
-## What is required before live replacement
+## Live pilot and remaining evaluation
 
 Replay timestamped, unseen Bid/Ask ticks and completed candles across different
 market regimes, retaining the historical higher-timeframe context available at
@@ -95,10 +97,17 @@ return as distinct events. Do not treat a BE instruction as an exited position.
 
 Record signal count, TP-before-SL ordering, ambiguous/missing-data intervals,
 drawdown and sensitivity to each provisional threshold. Hold out time periods
-from parameter selection. Then compare against the existing detector in shadow
-mode. One current snapshot and two historical signal records are insufficient to
+from parameter selection. Compare both subtypes against the prior detector when sufficient data is available. One current snapshot and two historical signal records are insufficient to
 approve performance or claim fewer losses.
 
-Live integration will also need to persist subtype/anchor evidence and update the
-server's stop-validation contract atomically. The existing publication RPC expects
-the old fixed-buffer contract; bypassing that contract is not part of this preview.
+Live integration stores subtype and anchor evidence in the publication audit.
+The server independently recomputes the V2 structural stop from the accepted
+snapshot and requires at least 1.5 reward/risk to the nearest target. Other
+strategies retain the prior fixed-buffer contract. A stable versioned identity
+permits one publication per anchored line, subtype and direction. New publication
+still uses the existing approved engine policy; monitoring and notification
+queues retain their current rules. No model parameters are changed on open signals.
+
+Rollback: restore the previous worker commit. The additive database validator
+continues to accept the prior protocol, and existing signals keep their stored
+levels. Do not delete evidence or send fabricated signals to test the pilot.

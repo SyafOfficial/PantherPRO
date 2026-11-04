@@ -1,8 +1,8 @@
 import { confirmedPivots } from "./structure";
 import { VESTRADO_RULES } from "./config";
 
-/** Research-only detector. No publication or notification API is imported here. */
-export const TRENDLINE_PREVIEW_VERSION = "trendline-v2-preview";
+/** Pure detector; publication is handled separately by the live adapter. */
+export const TRENDLINE_PREVIEW_VERSION = "trendline-v2";
 export type TrendlineBar = {
   opened_at_server_raw: number;
   open: number;
@@ -23,6 +23,7 @@ export type TrendlineProposal = {
   zoneHigh: number;
   entry: number;
   stop: number;
+  stopBuffer: number;
   target: number;
   rewardRisk: number;
 };
@@ -253,6 +254,7 @@ export function previewTrendline(input: {
         zoneHigh: confirm.high,
         entry,
         stop,
+        stopBuffer: buffer,
         target,
         rewardRisk,
       });
