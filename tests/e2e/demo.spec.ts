@@ -337,6 +337,9 @@ test("phone install guidance, method filters and macro education work without fa
   ).toBeVisible();
   await page.goto("/?view=Economic%20Calendar");
   await page
+    .getByText("News context & official releases", { exact: true })
+    .click();
+  await page
     .getByText("Federal Reserve rate decision", { exact: true })
     .click();
   await expect(
