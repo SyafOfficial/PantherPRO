@@ -101,7 +101,7 @@ begin
    update public.signals set status='closed',closed_at=now() where id=item.signal_id;
    update public.automatic_engine_tracking set state='closed' where signal_id=item.signal_id;
   end if;
-  update public.automatic_engine_tracking set last_snapshot=original_export,last_m5_open=greatest(last_m5_open,coalesce(stamp,last_m5_open)) where signal_id=item.signal_id;
+  update public.automatic_engine_tracking set last_snapshot=original_export where signal_id=item.signal_id;
   end loop;
   feed.snapshot=original_snapshot;feed.exported_at=original_export;
   update public.automatic_engine_tracking set last_snapshot=export_time where signal_id=signal_key;

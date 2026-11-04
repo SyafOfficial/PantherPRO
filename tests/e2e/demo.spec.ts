@@ -236,9 +236,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
       .poll(async () => (await notifications())[0]?.title)
       .toBe(expectedTitle);
     if (eventType === "signal.break_even")
-      expect((await notifications())[0].body).toBe(
-        "Collect half and Set BE",
-      );
+      expect((await notifications())[0].body).toBe("Collect half and Set BE");
   }
 });
 

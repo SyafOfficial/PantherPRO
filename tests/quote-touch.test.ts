@@ -16,17 +16,20 @@ async function setup() {
  create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role',true),'') $$;
  grant usage on schema public,auth to anon,authenticated,service_role;grant execute on all functions in schema auth to anon,authenticated,service_role;
  create publication supabase_realtime;`);
-  for (const file of (await readdir("supabase/migrations")).sort())
-    await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+  // PGlite has no pg_cron worker; emulate only the scheduler registration API.
+  // Production pg_cron installation and job state are verified against Supabase.
   await db.exec(
-    await readFile(
-      "supabase/proposals/quote_touch_monitor_and_priority_push.sql",
-      "utf8",
-    ),
+    "create schema cron; create function cron.schedule(text,text,text) returns bigint language sql as $$select 1::bigint$$;",
   );
-  await db.exec(
-    await readFile("supabase/proposals/signal_retention_30_days.sql", "utf8"),
-  );
+  for (const file of (await readdir("supabase/migrations")).sort()) {
+    const sql = await readFile(`supabase/migrations/${file}`, "utf8");
+    await db.exec(
+      sql.replace(
+        "create extension if not exists pg_cron with schema pg_catalog;",
+        "",
+      ),
+    );
+  }
   await db.query(
     "insert into auth.users(id) values ($1),($2),($3)",
     Object.values(ids),
@@ -224,6 +227,83 @@ test("a spread straddling the zone cannot falsely arm BE return", async () => {
     assert.equal(
       (await f.events()).filter((x) => x === "signal.be_hit").length,
       1,
+    );
+  } finally {
+    await f.db.close();
+  }
+});
+test("a BUY candle cannot advance a SELL cursor while ask M5 evidence is delayed", async () => {
+  const f = await tracked(true);
+  try {
+    const sell = (
+      await f.db.query<{ id: string }>(
+        "insert into signals(direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,reasoning,access,source,engine_version,source_event_id,source_fingerprint) values('SELL',100,99,101,104,95,90,80,'Delayed ask-side M5 must not inherit another signal candle cursor.','public','mt5','vestrado-structure-v1',repeat('d',64),repeat('d',64)) returning id",
+      )
+    ).rows[0].id;
+    await f.db.query(
+      "update signals set status='active',published_at=now(),approved_by=$1 where id=$2",
+      [ids.admin, sell],
+    );
+    const feed = (
+      await f.db.query<{ snapshot: any; exported_at: string }>(
+        "select snapshot,exported_at from mt5_bridge_latest",
+      )
+    ).rows[0];
+    await f.db.query(
+      "insert into automatic_engine_tracking(signal_id,last_snapshot,last_m5_open,last_tick_msc) values($1,$2,1,$3)",
+      [sell, feed.exported_at, feed.snapshot.quote.last_tick_time_msc_raw],
+    );
+    const q = structuredClone(feed.snapshot);
+    const send = async (offset: number, ask: boolean) => {
+      const at = new Date(
+        Date.parse(feed.exported_at) + offset * 1000,
+      ).toISOString();
+      q.exported_at_utc = at.slice(0, 19).replace(/-/g, ".").replace("T", " ");
+      q.server_time_raw = feed.snapshot.server_time_raw + offset;
+      q.quote.last_tick_time_raw = q.server_time_raw;
+      q.quote.last_tick_time_msc_raw = q.server_time_raw * 1000;
+      const opened = feed.snapshot.server_time_raw + 1 - 300;
+      q.series = [
+        {
+          timeframe: "M5",
+          candles: [{ opened_at_server_raw: opened, close: 100 }],
+        },
+      ];
+      q.ask_m5 = ask ? [{ opened_at_server_raw: opened, close: 104 }] : [];
+      await f.db.query("select ingest_mt5_snapshot($1,$2,$3)", [
+        q,
+        String(offset).padStart(64, "e"),
+        at,
+      ]);
+    };
+    await send(1, false);
+    assert.equal(
+      (
+        await f.db.query<{ last_m5_open: number }>(
+          "select last_m5_open from automatic_engine_tracking where signal_id=$1",
+          [sell],
+        )
+      ).rows[0].last_m5_open,
+      1,
+    );
+    await send(2, true);
+    assert.equal(
+      (
+        await f.db.query<{ status: string }>(
+          "select status from signals where id=$1",
+          [sell],
+        )
+      ).rows[0].status,
+      "closed",
+    );
+    assert.equal(
+      (
+        await f.db.query<{ status: string }>(
+          "select status from signals where id=$1",
+          [f.id],
+        )
+      ).rows[0].status,
+      "active",
     );
   } finally {
     await f.db.close();

@@ -4,10 +4,7 @@ export function authFailureMessage(
 ) {
   if (error.code === "over_email_send_rate_limit")
     return "The email service has reached its sending limit. Please retry later or contact Panther FX support. Repeating registration will not send an email sooner.";
-  if (
-    error.code === "over_request_rate_limit" ||
-    error.status === 429
-  )
+  if (error.code === "over_request_rate_limit" || error.status === 429)
     return "Too many requests. Wait at least 60 seconds before trying again. If the limit remains, contact Panther FX support.";
   if (
     error.code === "email_address_not_authorized" ||

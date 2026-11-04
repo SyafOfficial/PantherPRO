@@ -16,17 +16,20 @@ async function setup() {
  create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role',true),'') $$;
  grant usage on schema public,auth to anon,authenticated,service_role;grant execute on all functions in schema auth to anon,authenticated,service_role;
  create publication supabase_realtime;`);
-  for (const file of (await readdir("supabase/migrations")).sort())
-    await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+  // PGlite has no pg_cron worker; emulate only the scheduler registration API.
+  // Production pg_cron installation and job state are verified against Supabase.
   await db.exec(
-    await readFile(
-      "supabase/proposals/quote_touch_monitor_and_priority_push.sql",
-      "utf8",
-    ),
+    "create schema cron; create function cron.schedule(text,text,text) returns bigint language sql as $$select 1::bigint$$;",
   );
-  await db.exec(
-    await readFile("supabase/proposals/signal_retention_30_days.sql", "utf8"),
-  );
+  for (const file of (await readdir("supabase/migrations")).sort()) {
+    const sql = await readFile(`supabase/migrations/${file}`, "utf8");
+    await db.exec(
+      sql.replace(
+        "create extension if not exists pg_cron with schema pg_catalog;",
+        "",
+      ),
+    );
+  }
   await db.query(
     "insert into auth.users(id) values ($1),($2),($3)",
     Object.values(ids),
