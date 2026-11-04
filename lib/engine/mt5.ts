@@ -138,7 +138,7 @@ export const mt5SnapshotSchema = z
       ticks.some(
         (q, i) =>
           q.last_tick_time_raw > s.server_time_raw ||
-          s.server_time_raw - q.last_tick_time_raw > 30 ||
+          s.quote.last_tick_time_msc_raw - q.last_tick_time_msc_raw > 30_000 ||
           q.last_tick_time_msc_raw > s.quote.last_tick_time_msc_raw ||
           (i > 0 &&
             q.last_tick_time_msc_raw < ticks[i - 1].last_tick_time_msc_raw),

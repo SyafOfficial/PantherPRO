@@ -113,3 +113,31 @@ test("tick windows reject stale, reversed, future and invalid spread evidence", 
   ])
     assert.throws(() => inspectMt5Snapshot(withTicks(ticks), now));
 });
+test("a full 30-second buffer is measured from the latest broker tick, including fractional seconds", () => {
+  const f = fixture();
+  const tick = (ageMs: number) => {
+    const at = f.quote.last_tick_time_msc_raw - ageMs;
+    return {
+      ...f.quote,
+      last_tick_time_raw: Math.floor(at / 1000),
+      last_tick_time_msc_raw: at,
+    };
+  };
+  assert.equal(
+    inspectMt5Snapshot({ ...f, quote_ticks: [tick(30000), f.quote] }, now)
+      .freshness.usableCurrentQuote,
+    true,
+  );
+  assert.throws(() =>
+    inspectMt5Snapshot({ ...f, quote_ticks: [tick(30001), f.quote] }, now),
+  );
+  const stale = {
+    ...f,
+    server_time_raw: f.server_time_raw + 61,
+    quote_ticks: [tick(30000), f.quote],
+  };
+  assert.equal(
+    inspectMt5Snapshot(stale, now).freshness.usableCurrentQuote,
+    false,
+  );
+});
