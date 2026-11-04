@@ -45,3 +45,27 @@ export async function forEachConcurrent<T>(
   if (failures.length)
     throw new Error("Some delivery tasks failed; leases will recover them");
 }
+/** A freed slot can accept the next delivery without waiting for its batch peers. */
+export function createTaskPool(limit: number, onError: () => void) {
+  if (!Number.isInteger(limit) || limit < 1)
+    throw new Error("Invalid task capacity");
+  const tasks = new Set<Promise<void>>();
+  return {
+    get available() {
+      return limit - tasks.size;
+    },
+    start(job: () => Promise<void>) {
+      if (tasks.size >= limit) throw new Error("Task capacity exhausted");
+      const task = Promise.resolve()
+        .then(job)
+        .catch(onError)
+        .finally(() => {
+          tasks.delete(task);
+        });
+      tasks.add(task);
+    },
+    async drain() {
+      while (tasks.size) await Promise.all([...tasks]);
+    },
+  };
+}

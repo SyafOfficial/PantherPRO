@@ -1,4 +1,4 @@
-import { identity } from "@/lib/supabase";
+import { isConfigured, supabase } from "@/lib/supabase";
 import { serviceDb } from "@/lib/service-db";
 import {
   DISPLAY_FRAMES,
@@ -8,7 +8,18 @@ import {
 export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
-  if (!(await identity()))
+  if (!isConfigured())
+    return Response.json(
+      { error: "Sign in required" },
+      { status: 401, headers },
+    );
+  // Verify the user without fetching unrelated profile or MFA metadata per poll.
+  const db = await supabase();
+  const {
+    data: { user },
+    error: authError,
+  } = await db.auth.getUser();
+  if (authError || !user)
     return Response.json(
       { error: "Sign in required" },
       { status: 401, headers },

@@ -125,29 +125,52 @@ export default function Terminal({
       })
     : "—";
   useEffect(() => {
-    if (
-      mode !== "connected" ||
-      !user ||
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    )
-      return;
-    const db = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    );
-    const channel = db
-      .channel("authorized-signals")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "signals" },
-        () => router.refresh(),
-      )
-      .subscribe();
-    const timer = setInterval(() => router.refresh(), 15000);
+    if (mode !== "connected" || !user) return;
+    let subscribed = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (document.visibilityState === "hidden" || refreshTimer) return;
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        if (document.visibilityState !== "hidden") router.refresh();
+      }, 100);
+    };
+    let disconnect = () => {};
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key =
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key) {
+      try {
+        const db = createBrowserClient(url, key);
+        const channel = db
+          .channel("authorized-signals")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "signals" },
+            refresh,
+          )
+          .subscribe((status) => {
+            subscribed = status === "SUBSCRIBED";
+            if (subscribed) refresh();
+          });
+        disconnect = () => {
+          void db.removeChannel(channel);
+        };
+      } catch {
+        // Authenticated server refresh remains available if Realtime setup fails.
+        subscribed = false;
+      }
+    }
+    const timer = setInterval(() => {
+      if (!subscribed) refresh();
+    }, 5000);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
-      void db.removeChannel(channel);
+      disconnect();
       clearInterval(timer);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [mode, user?.email, router]);
   useEffect(() => {
@@ -183,6 +206,7 @@ export default function Terminal({
         timer = setTimeout(poll, 2000);
         return;
       }
+      const startedAt = Date.now();
       controller = new AbortController();
       const timeout = setTimeout(() => controller?.abort(), 8000);
       try {
@@ -201,7 +225,11 @@ export default function Terminal({
       } finally {
         clearTimeout(timeout);
       }
-      if (!stopped) timer = setTimeout(poll, 2000);
+      if (!stopped)
+        timer = setTimeout(
+          poll,
+          Math.max(250, 2000 - (Date.now() - startedAt)),
+        );
     };
     let timer: ReturnType<typeof setTimeout>;
     setMt5(null);
