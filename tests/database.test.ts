@@ -1837,6 +1837,37 @@ test("50-pip alert uses entry inclusive for BUY and SELL, survives retrace and i
     }>("select break_even,max_favorable_movement,outcome from signals");
     assert.equal(result.rows[0].break_even, true);
     assert.equal(Number(result.rows[0].max_favorable_movement), 6);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from notification_outbox where event_type='signal.be_hit'",
+        )
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await db.query<{ status: string }>("select status from signals")).rows[0]
+        .status,
+      "closed",
+    );
+    await tick(5, base);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from notification_outbox where event_type='signal.be_hit'",
+        )
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from notification_outbox where event_type='signal.stop_hit'",
+        )
+      ).rows[0].n,
+      0,
+    );
+
     assert.equal(result.rows[0].outcome, null);
     assert.equal(
       Number(
@@ -1847,4 +1878,60 @@ test("50-pip alert uses entry inclusive for BUY and SELL, survives retrace and i
     );
     await db.close();
   }
+});
+
+test("wide zone needs a genuine outside-then-return after 50 pips before BE closes monitoring", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  await db.query("select public.set_automatic_engine(true)");
+  await as(db, "service_role");
+  const id = (
+    await db.query<{ id: string }>(
+      "insert into signals(direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,reasoning,access,source,engine_version,source_event_id,source_fingerprint) values('BUY',100,99,107,96,110,115,120,'Wide-zone management fixture with confirmed quote observations.','public','mt5','vestrado-structure-v1',repeat('b',64),repeat('b',64)) returning id",
+    )
+  ).rows[0].id;
+  await db.query(
+    "update signals set status='active',published_at=now(),approved_by=$1 where id=$2",
+    [ids.admin, id],
+  );
+  const f = await autoFixture(db);
+  const first = await f.put();
+  await db.query(
+    "insert into automatic_engine_tracking(signal_id,last_snapshot,last_m5_open) values($1,$2,$3)",
+    [id, first, f.plan.confirmationOpenedServer],
+  );
+  const tick = async (offset: number, price: number) => {
+    const at = await f.put(offset, price);
+    await db.query("select apply_automatic_engine($1,'[]'::jsonb)", [at]);
+  };
+  await tick(1, 105);
+  await tick(2, 106);
+  assert.equal(
+    (
+      await db.query<{ n: number }>(
+        "select count(*)::int n from notification_outbox where event_type='signal.be_hit'",
+      )
+    ).rows[0].n,
+    0,
+  );
+  await tick(3, 108);
+  await tick(4, 107);
+  assert.equal(
+    (
+      await db.query<{ n: number }>(
+        "select count(*)::int n from notification_outbox where event_type='signal.be_hit'",
+      )
+    ).rows[0].n,
+    1,
+  );
+  assert.equal(
+    (
+      await db.query<{ status: string }>(
+        "select status from signals where id=$1",
+        [id],
+      )
+    ).rows[0].status,
+    "closed",
+  );
+  await db.close();
 });

@@ -118,6 +118,9 @@ test("device worker renders multiline entry prices and exact TP1 management text
       { ...signal, break_even: true },
     ),
   );
+  await push(notificationPayload({ ...delivery, event_type: "signal.be_hit" }));
+  assert.equal(shown[7].title, "Our setup HIT BE!");
+  assert.equal(shown[7].options.body, "Ready next zone");
   assert.equal(shown[6].title, "Original SL reached");
   assert.equal(
     shown[6].options.body,

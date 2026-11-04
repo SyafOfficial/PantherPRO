@@ -1,3 +1,4 @@
+import { runWorkerLoop, forEachConcurrent } from "../lib/worker-loop";
 import { createCalendarDisplayRefresh } from "../lib/calendar-display-cache";
 import { ownerShadowFailure } from "../lib/engine/owner-service";
 import { createOwnerShadowCycle } from "../lib/engine/owner-service";
@@ -73,7 +74,7 @@ const refreshCalendarDisplay = createCalendarDisplayRefresh(db, {
 });
 const ownerShadowCycle = createOwnerShadowCycle(db);
 let ownerCheckedAt = 0;
-async function cycle() {
+async function backgroundCycle() {
   // Do not make engine/push processing wait on external calendar requests.
   void refreshCalendarDisplay().catch(() =>
     console.warn(
@@ -112,6 +113,8 @@ async function cycle() {
       "Calendar sync unavailable; existing push delivery continues.",
     );
   }
+}
+async function engineCycle() {
   try {
     const engine = await automaticEngineCycle(db);
     if (
@@ -134,15 +137,17 @@ async function cycle() {
       "Automatic engine cycle rejected; existing push delivery continues.",
     );
   }
+}
+async function cycle() {
   await rpc("prepare_push_deliveries", { batch_size: 20 });
-  // Small batches keep serial network calls below the two-minute lease.
+  // Bounded concurrent delivery prevents slow devices delaying everyone else.
   const deliveries = (await rpc("claim_push_deliveries", {
-    batch_size: 5,
+    batch_size: 10,
   })) as Delivery[];
-  for (const item of deliveries) {
+  await forEachConcurrent(deliveries, 5, async (item) => {
     if (!safePushEndpoint(item.endpoint)) {
       await finish(item, "failed", "unsupported_endpoint");
-      continue;
+      return;
     }
     if (
       !(await rpc("notification_allowed", {
@@ -151,7 +156,7 @@ async function cycle() {
       }))
     ) {
       await finish(item, "skipped", "no_longer_eligible");
-      continue;
+      return;
     }
     try {
       let signal: PushSignalDetails | null = null;
@@ -173,7 +178,7 @@ async function cycle() {
           !data.published_at
         ) {
           await finish(item, "skipped", "signal_not_active");
-          continue;
+          return;
         }
         signal = data;
         if (
@@ -183,7 +188,7 @@ async function cycle() {
           }))
         ) {
           await finish(item, "skipped", "no_longer_eligible");
-          continue;
+          return;
         }
       }
       await webpush.sendNotification(
@@ -192,7 +197,11 @@ async function cycle() {
           keys: { p256dh: item.p256dh, auth: item.auth },
         },
         JSON.stringify(notificationPayload(item, signal)),
-        { TTL: 300, urgency: "normal", timeout: 10000 },
+        {
+          TTL: 300,
+          urgency: item.event_type.startsWith("signal.") ? "high" : "normal",
+          timeout: 10000,
+        },
       );
       await finish(item, "delivered");
       // A push-service acceptance is not proof that a physical device displayed it.
@@ -203,7 +212,7 @@ async function cycle() {
       const failure = classifyPushFailure(error);
       await finish(item, failure.state, failure.code);
     }
-  }
+  });
   await rpc("finalize_push_events");
   return deliveries.length;
 }
@@ -215,21 +224,31 @@ process.on("SIGTERM", () => {
   stopping = true;
 });
 async function main() {
-  do {
-    try {
-      const count = await cycle();
-      if (process.argv.includes("--once")) break;
-      if (!count) await new Promise((resolve) => setTimeout(resolve, 5000));
-    } catch {
-      console.error(
-        "Push worker cycle failed; inspect database connectivity and migration status. No credentials or endpoints logged.",
-      );
-      if (process.argv.includes("--once")) {
-        process.exitCode = 1;
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-    }
-  } while (!stopping);
+  const once = process.argv.includes("--once");
+  const onError = () =>
+    console.error(
+      "Worker task failed; retrying without blocking other tasks. No credentials or endpoints logged.",
+    );
+  await Promise.all([
+    runWorkerLoop(cycle, {
+      idleMs: 1000,
+      busyMs: 0,
+      once,
+      stopped: () => stopping,
+      onError,
+    }),
+    runWorkerLoop(engineCycle, {
+      idleMs: 2000,
+      once,
+      stopped: () => stopping,
+      onError,
+    }),
+    runWorkerLoop(backgroundCycle, {
+      idleMs: 5000,
+      once,
+      stopped: () => stopping,
+      onError,
+    }),
+  ]);
 }
 void main();

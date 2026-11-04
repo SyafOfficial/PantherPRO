@@ -98,7 +98,6 @@ begin
 end;
 $$;
 
-commit;
 
 revoke all on function public.apply_automatic_engine(timestamptz,jsonb) from public,anon,authenticated;
 grant execute on function public.apply_automatic_engine(timestamptz,jsonb) to service_role;

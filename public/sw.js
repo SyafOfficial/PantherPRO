@@ -94,6 +94,7 @@ self.addEventListener("push", (event) => {
         return;
       if (!(await firstDelivery(payload.id))) return;
       const progressCopies = new Map([
+        ["signal.be_hit", ["Our setup HIT BE!", "Ready next zone"]],
         ["signal.tp1", ["HIT TP 1 Lads!", "Collect half now and Set BE"]],
         ["signal.tp2", ["HIT TP 2 Lads!", "Collect half now and Set BE"]],
         ["signal.tp3", ["HIT TP3!", "CLOSE ALL NOW"]],

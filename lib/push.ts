@@ -66,6 +66,10 @@ export function notificationPayload(
 ) {
   let title = "Panther FX intelligence";
   let body = "A new update is available. Open your terminal to review it.";
+  if (delivery.event_type === "signal.be_hit") {
+    title = "Our setup HIT BE!";
+    body = "Ready next zone";
+  }
   if (delivery.event_type === "signal.break_even") {
     title = "Price running 50 pips!";
     body = "Collect half and Set BE";

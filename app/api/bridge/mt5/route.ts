@@ -1,3 +1,5 @@
+import { after } from "next/server";
+import { monitorAcceptedSnapshot } from "@/lib/engine/monitor";
 import {
   snapshotBody,
   snapshotDigest,
@@ -94,6 +96,14 @@ export async function POST(request: Request) {
         headers,
       },
     );
+  // Monitor existing signals immediately on authenticated, stored quote arrival.
+  // Publication remains in the policy-controlled worker scanner.
+  after(() =>
+    monitorAcceptedSnapshot(
+      serviceDb(),
+      new Date(snapshotUtc(snapshot.exported_at_utc)).toISOString(),
+    ),
+  );
   return Response.json(
     { received: true, ...data, signal_published: false },
     { status: 202, headers },
