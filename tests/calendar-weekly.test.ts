@@ -154,3 +154,25 @@ test("an old weekly schedule cannot be labelled as current merely because it was
     /Calendar week is stale/,
   );
 });
+test("HTTP 429 honors Retry-After, with an hourly fallback rather than rapid retries", async () => {
+  const { CalendarSourceError } = await import("../lib/forex-factory");
+  for (const [header, delay] of [
+    ["7200", 7200000],
+    [null, 3600000],
+  ] as const) {
+    try {
+      await forexFactoryCalendar(
+        (async () =>
+          new Response("Limited", {
+            status: 429,
+            headers: header ? { "Retry-After": header } : {},
+          })) as typeof fetch,
+        now,
+      );
+      assert.fail("Expected a rate-limit response");
+    } catch (error) {
+      assert.ok(error instanceof CalendarSourceError);
+      assert.equal(error.retryAt, now + delay);
+    }
+  }
+});

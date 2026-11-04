@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { scraperCalendar, importScraperEvents } from "./forex-factory-scraper";
 import {
   forexFactoryCalendar,
+  CalendarSourceError,
   type ForexFactoryCalendar,
 } from "./forex-factory";
 import { weeklyCalendarEvents } from "./calendar-weekly";
@@ -29,27 +30,34 @@ export function createCalendarSync(
     if (now >= nextFetch) {
       nextFetch = now + refreshMs;
       readyUntil = 0;
-      const calendar = weekly
-        ? await loadWeekly()
-        : await load(options.url!, options.token);
-      const events = weekly
-        ? weeklyCalendarEvents(calendar, now)
-        : (calendar as Awaited<ReturnType<typeof scraperCalendar>>).events;
-      imported = await importScraperEvents(db, options.providerId, events);
-      if (weekly) {
-        const { error } = await db.from("calendar_display_cache").upsert({
-          singleton: true,
-          payload: calendar,
-          fetched_at: calendar.fetched_at,
-        });
-        if (error) throw new Error("Calendar cache write failed");
+      try {
+        const calendar = weekly
+          ? await loadWeekly()
+          : await load(options.url!, options.token);
+        const events = weekly
+          ? weeklyCalendarEvents(calendar, now)
+          : (calendar as Awaited<ReturnType<typeof scraperCalendar>>).events;
+        imported = await importScraperEvents(db, options.providerId, events);
+        if (weekly) {
+          const { error } = await db.from("calendar_display_cache").upsert({
+            singleton: true,
+            payload: calendar,
+            fetched_at: calendar.fetched_at,
+          });
+          if (error) throw new Error("Calendar cache write failed");
+        }
+        readyUntil = Math.min(
+          now + refreshMs,
+          ...events.map(
+            (event) => Date.parse(event.source_updated_at) + 86400000,
+          ),
+        );
+      } catch (error) {
+        if (weekly)
+          nextFetch =
+            error instanceof CalendarSourceError ? error.retryAt : now + 60000;
+        throw error;
       }
-      readyUntil = Math.min(
-        now + refreshMs,
-        ...events.map(
-          (event) => Date.parse(event.source_updated_at) + 86400000,
-        ),
-      );
     }
     if (now < readyUntil && now >= nextQueue) {
       nextQueue = now + 30000;

@@ -56,6 +56,25 @@ export function parseForexFactory(value: unknown): ForexFactoryEvent[] {
     throw new Error("No valid USD calendar records");
   return events.sort((a, b) => a.event_time.localeCompare(b.event_time));
 }
+export class CalendarSourceError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly retryAt: number,
+  ) {
+    super(`Calendar source HTTP ${status}`);
+  }
+}
+function sourceRetryAt(response: Response, now: number) {
+  const value = response.headers.get("retry-after")?.trim() ?? "";
+  const supplied = /^\d+$/.test(value)
+    ? now + Number(value) * 1000
+    : Date.parse(value);
+  const fallback = now + (response.status === 429 ? 3600000 : 600000);
+  return Math.max(
+    now + 600000,
+    Number.isFinite(supplied) ? supplied : fallback,
+  );
+}
 async function fetchWeeklyCalendar(
   fetcher: typeof fetch = fetch,
   now = Date.now(),
@@ -69,7 +88,11 @@ async function fetchWeeklyCalendar(
       "User-Agent": "PantherPRO-Calendar/1.0",
     },
   });
-  if (!response.ok) throw new Error(`Calendar source HTTP ${response.status}`);
+  if (!response.ok)
+    throw new CalendarSourceError(
+      response.status,
+      sourceRetryAt(response, now),
+    );
   const limit = 1048576;
   if (Number(response.headers.get("content-length") ?? 0) > limit)
     throw new Error("Calendar too large");
@@ -136,7 +159,8 @@ export function forexFactoryCalendar(
         error instanceof Error
           ? error
           : new Error("Calendar source unavailable");
-      retryAt = now + 10 * 60000;
+      retryAt =
+        error instanceof CalendarSourceError ? error.retryAt : now + 10 * 60000;
       throw failure;
     })
     .finally(() => {
@@ -147,6 +171,12 @@ export function forexFactoryCalendar(
 export function calendarFailure(error: unknown) {
   const message = error instanceof Error ? error.message : "";
   const status = /^Calendar source HTTP (\d{3})$/.exec(message);
+  if (error instanceof CalendarSourceError)
+    return {
+      reason: "upstream_http",
+      status: error.status,
+      retry_at: new Date(error.retryAt).toISOString(),
+    };
   return status
     ? { reason: "upstream_http", status: Number(status[1]) }
     : { reason: "source_or_import_unavailable" };

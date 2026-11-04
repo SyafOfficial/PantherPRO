@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   forexFactoryCalendar,
+  CalendarSourceError,
   type ForexFactoryCalendar,
 } from "./forex-factory";
 import { scraperCalendar } from "./forex-factory-scraper";
@@ -34,7 +35,8 @@ export function createCalendarDisplayRefresh(
           .upsert({ singleton: true, payload, fetched_at: payload.fetched_at });
         if (error) throw new Error("Calendar cache write failed");
       } catch (error) {
-        next = now + 60000;
+        next =
+          error instanceof CalendarSourceError ? error.retryAt : now + 60000;
         throw error;
       } finally {
         running = null;

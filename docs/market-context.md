@@ -50,7 +50,7 @@ source observation is available, using the existing scheduled-time deduplication
 The free export is a schedule source, not a streaming economic-release service.
 Actuals may remain unavailable. Source/import failures keep the last successful
 cache and do not invent events or block trading signal delivery. Shared fetches
-back off for ten minutes after failure. The calendar still does not pause or
+back off for at least ten minutes after failure and respect `Retry-After`; HTTP 429 without that header waits one hour. The calendar still does not pause or
 publish trading signals automatically.
 
 Source attribution and the internal provider record describe the owner-selected
