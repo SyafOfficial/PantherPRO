@@ -5,7 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 const ids = {
   admin: "00000000-0000-4000-8000-000000000001",
   public: "00000000-0000-4000-8000-000000000002",
-  vip: "00000000-0000-4000-8000-000000000003",
+  member: "00000000-0000-4000-8000-000000000003",
 };
 async function setup() {
   const db = new PGlite();
@@ -37,14 +37,14 @@ async function setup() {
   await db.query("update public.profiles set role='admin' where id=$1", [
     ids.admin,
   ]);
-  await db.query("update public.profiles set role='vip' where id=$1", [
-    ids.vip,
+  await db.query("update public.profiles set role='public' where id=$1", [
+    ids.member,
   ]);
   return db;
 }
 async function as(
   db: PGlite,
-  role: "admin" | "public" | "vip" | "service_role" | "anon",
+  role: "admin" | "public" | "member" | "service_role" | "anon",
 ) {
   await db.exec("reset role");
   await db.query(

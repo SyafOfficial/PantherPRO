@@ -37,13 +37,7 @@ export default function SignalEditor({
                   <option>SELL</option>
                 </select>
               </label>
-              <label>
-                Audience
-                <select name="access" defaultValue={String(s.access)}>
-                  <option value="public">Public</option>
-                  <option value="vip">VIP</option>
-                </select>
-              </label>
+              <input type="hidden" name="access" value="public" />
             </>
           )}
           {[

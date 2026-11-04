@@ -1,4 +1,4 @@
-import InstallApp from "@/components/install-app";
+import { redirect } from "next/navigation";
 export default function InstallPage() {
-  return <InstallApp />;
+  redirect("/guide");
 }

@@ -51,16 +51,6 @@ export async function transitionSignal(form: FormData) {
   });
   result(Boolean(error));
 }
-export async function changeMemberRole(form: FormData) {
-  const db = await admin();
-  const role = String(form.get("role"));
-  if (!["public", "vip"].includes(role)) result(true);
-  const { error } = await db.rpc("set_member_role", {
-    member_id: String(form.get("id")),
-    new_role: role,
-  });
-  result(Boolean(error));
-}
 export async function reviseSignal(form: FormData) {
   const db = await admin();
   const parsed = signalSchema.safeParse({
@@ -105,7 +95,7 @@ export async function publishAnnouncement(form: FormData) {
     title.length > 150 ||
     !body ||
     body.length > 5000 ||
-    !["public", "vip"].includes(access)
+    access !== "public"
   )
     result(true);
   const { error } = await db.rpc("publish_announcement", {

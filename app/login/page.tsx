@@ -30,7 +30,7 @@ export default async function Login({
         </h1>
         <p>
           {user
-            ? `${user.email} · ${user.role} membership`
+            ? `${user.email} · ${user.role === "admin" ? "Administrator" : "Member"}`
             : "A disciplined approach to market intelligence."}
         </p>
         {!isConfigured() && (
@@ -142,7 +142,7 @@ export default async function Login({
             </details>
             <p style={{ fontSize: 10, marginTop: 18 }}>
               Email confirmation is required. Account creation does not grant
-              VIP or administrator privileges.
+              administrator privileges.
             </p>
           </>
         )}

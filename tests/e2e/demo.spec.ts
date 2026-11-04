@@ -61,13 +61,14 @@ test("phone navigation works without horizontal overflow", async ({ page }) => {
   ).toBeVisible();
   await page.getByRole("button", { name: "More", exact: true }).click();
   await page
-    .getByRole("button", { name: "VIP Membership", exact: true })
+    .getByRole("button", { name: "Profile & Notifications", exact: true })
     .click();
   await expect(
-    page.getByText("No subscription or payment provider is active.", {
-      exact: false,
-    }),
+    page.getByRole("heading", { name: "Your private workspace" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "VIP Membership", exact: true }),
+  ).toHaveCount(0);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -362,8 +363,9 @@ test("phone install guidance, method filters and macro education work without fa
     ),
   ).toBe(true);
   await page.goto("/install");
+  await expect(page).toHaveURL(/\/guide$/);
   await expect(
-    page.getByRole("heading", { name: "Your edge. On your home screen." }),
+    page.getByRole("heading", { name: "Panther FX Guide" }),
   ).toBeVisible();
   await expect(
     page.getByText("Delivery service not configured", { exact: true }),

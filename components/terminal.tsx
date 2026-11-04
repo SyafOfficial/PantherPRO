@@ -30,7 +30,6 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
-  Crown,
   Globe2,
   Layers3,
   Menu,
@@ -44,7 +43,6 @@ import {
   CalendarDays,
   Radio,
   ArrowRight,
-  Check,
   LogIn,
 } from "lucide-react";
 const sections = [
@@ -53,7 +51,6 @@ const sections = [
   "AI Intelligence",
   "Economic Calendar",
   "Performance",
-  "VIP Membership",
   "Profile & Notifications",
 ];
 const icons = [
@@ -62,7 +59,6 @@ const icons = [
   Sparkles,
   CalendarDays,
   Activity,
-  Crown,
   UserRound,
 ];
 type Props = {
@@ -303,14 +299,6 @@ export default function Terminal({
           })}
         </nav>
         <div className="sidebar-bottom">
-          <div className="club-card">
-            <Crown size={22} />
-            <h3>Your edge. Elevated.</h3>
-            <p>A more considered approach to the markets.</p>
-            <button onClick={() => navigate("VIP Membership")}>
-              Explore Panther VIP <ArrowUpRight size={16} />
-            </button>
-          </div>
           <div className="system-state">
             <span className="dot muted-dot" />{" "}
             {demo ? "Demo environment" : "Database connected"}
@@ -321,11 +309,11 @@ export default function Terminal({
             <span>
               {user?.name || "Guest explorer"}
               <small>
-                {user?.role === "vip"
-                  ? "VIP member"
+                {user?.role === "admin"
+                  ? "Administrator"
                   : user
-                    ? "Public member"
-                    : "Demo access"}
+                    ? "Member"
+                    : "Demo Access"}
               </small>
             </span>
             <Settings2 size={17} />
@@ -348,8 +336,8 @@ export default function Terminal({
             <strong>{view}</strong>
           </div>
           <div className="top-actions">
-            <Link className="install-link" href="/install">
-              Install app
+            <Link className="guide-link" href="/guide">
+              Guide
             </Link>
             <span className="session">
               <span className="dot muted-dot" />
@@ -841,7 +829,6 @@ const descriptions: Record<string, string> = {
   "Economic Calendar":
     "The events that shape the market. All times in Malaysia time.",
   Performance: "Transparent records. Measured outcomes.",
-  "VIP Membership": "A deeper perspective for the disciplined trader.",
   "Profile & Notifications": "Your account. Your preferences. Your control.",
 };
 function Stat({
@@ -1067,7 +1054,7 @@ function SignalCard({
         </span>
         <span>
           <ShieldCheck size={13} />
-          {demo ? "Fictional · not actionable" : `${s.access} access`}
+          {demo ? "Fictional · not actionable" : "Member Access"}
         </span>
         <button className="text-button" onClick={() => setExpanded(!expanded)}>
           {expanded ? "Less detail" : "View reasoning"}
@@ -1178,41 +1165,6 @@ function Section({
         timeframe={chartTimeframe}
         onTimeframe={onChartTimeframe}
       />
-    );
-  if (view === "VIP Membership")
-    return (
-      <div className="membership panel">
-        <Crown size={42} />
-        <div className="eyebrow">PANTHER PRIVATE MEMBERSHIP</div>
-        <h2>
-          A sharper perspective.
-          <br />A more deliberate approach.
-        </h2>
-        <p>
-          VIP infrastructure is prepared for exclusive signals, deeper context
-          and member announcements. No subscription or payment provider is
-          active.
-        </p>
-        <div className="membership-features">
-          {[
-            "Administrator-reviewed signal access",
-            "Protected member intelligence",
-            "Individual notification preferences",
-          ].map((t) => (
-            <span key={t}>
-              <Check size={17} />
-              {t}
-            </span>
-          ))}
-        </div>
-        <Link href="/login" className="primary-button">
-          {user ? "Manage your account" : "Create your account"}
-          <ArrowRight size={17} />
-        </Link>
-        <small>
-          Membership is granted by an administrator. No payment collected.
-        </small>
-      </div>
     );
   if (view === "Profile & Notifications")
     return (

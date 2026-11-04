@@ -81,11 +81,11 @@ export default function InstallApp() {
       </Link>
       <section className="panel install-hero">
         <Smartphone size={42} />
-        <div className="eyebrow">PANTHER FX · WEB APP</div>
-        <h1>Your edge. On your home screen.</h1>
+        <div className="eyebrow">PANTHER FX · GUIDE</div>
+        <h1>Panther FX Guide</h1>
         <p>
-          Install the web app for a dedicated phone experience. Receive signal
-          updates on supported devices after sign-in, permission and push setup.
+          Set up Panther FX on your phone, enable notifications and learn how to
+          use your workspace.
         </p>
         <button
           className="primary-button"

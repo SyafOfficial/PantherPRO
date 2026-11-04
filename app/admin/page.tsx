@@ -9,7 +9,6 @@ import {
   setAutomaticEngine,
   createSignal,
   transitionSignal,
-  changeMemberRole,
   publishAnnouncement,
 } from "./actions";
 export const dynamic = "force-dynamic";
@@ -138,8 +137,8 @@ export default async function Admin({
           signal quota. Independent tick-volume M5 signals use a 1.5× prior
           20-bar volume threshold, momentum confirmation and intact M5/M15/M30
           support/resistance for SL; targets use intact M30/H1/H4 resistance for
-          BUY or support for SELL. Tick-volume signals are VIP-only; this master
-          publication control also pauses them.
+          BUY or support for SELL. Tick-volume signals are available to members;
+          this master publication control also pauses them.
         </p>
         <p>
           Signals use observed Vestrado prices, not broker fills. M5-close
@@ -220,13 +219,7 @@ export default async function Admin({
                   />
                 </label>
               ))}
-              <label>
-                Access
-                <select name="access">
-                  <option value="public">Public members</option>
-                  <option value="vip">VIP members</option>
-                </select>
-              </label>
+              <input type="hidden" name="access" value="public" />
               <label>
                 Reasoning
                 <textarea
@@ -328,12 +321,8 @@ export default async function Admin({
             ))}
           </section>
           <section className="panel content-panel">
-            <div className="eyebrow">MEMBERSHIP CONTROL</div>
-            <h2>Members & VIP access</h2>
-            <p>
-              Administrator grants require a privileged database operation,
-              never a client-side role change.
-            </p>
+            <div className="eyebrow">ACCOUNTS</div>
+            <h2>Members</h2>
             {!profiles.data?.length && <p>No member records available.</p>}
             {profiles.data?.map((p) => (
               <div className="admin-member" key={p.id}>
@@ -342,17 +331,7 @@ export default async function Admin({
                 {p.role === "admin" ? (
                   <span className="outline-tag">ADMINISTRATOR · PROTECTED</span>
                 ) : (
-                  <form action={changeMemberRole} className="form">
-                    <input type="hidden" name="id" value={p.id} />
-                    <label>
-                      Membership
-                      <select name="role" defaultValue={p.role}>
-                        <option value="public">Public</option>
-                        <option value="vip">VIP</option>
-                      </select>
-                    </label>
-                    <button className="secondary-button">Save access</button>
-                  </form>
+                  <span className="outline-tag">MEMBER</span>
                 )}
               </div>
             ))}
@@ -425,13 +404,7 @@ export default async function Admin({
                   disabled={demo}
                 />
               </label>
-              <label>
-                Audience
-                <select name="access">
-                  <option value="public">Public members</option>
-                  <option value="vip">VIP members</option>
-                </select>
-              </label>
+              <input type="hidden" name="access" value="public" />
               <button className="primary-button" disabled={demo}>
                 Review & publish announcement
               </button>

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { signalSchema, canAccess, canTransition } from "../lib/signals";
+import { signalSchema, canTransition } from "../lib/signals";
 const buy = {
   instrument: "XAUUSD",
   direction: "BUY",
@@ -38,12 +38,14 @@ test("rejects mismatched stops, unordered targets, empty reasoning and non-finit
   ])
     assert.equal(signalSchema.safeParse({ ...buy, ...changes }).success, false);
 });
-test("VIP authorization rejects public members; admin and VIP can access", () => {
-  assert.equal(canAccess("public", "vip"), false);
-  assert.equal(canAccess("vip", "vip"), true);
-  assert.equal(canAccess("admin", "vip"), true);
-  assert.equal(canAccess("public", "public"), true);
+test("signals have one member audience and reject retired membership tiers", () => {
+  assert.equal(
+    signalSchema.safeParse({ ...buy, access: "vip" }).success,
+    false,
+  );
+  assert.equal(signalSchema.safeParse(buy).success, true);
 });
+
 test("review is required; closed signals cannot reopen", () => {
   assert.equal(canTransition("draft", "active"), false);
   assert.equal(canTransition("draft", "pending"), true);

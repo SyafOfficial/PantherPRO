@@ -5,7 +5,7 @@ import { readFile, readdir } from "node:fs/promises";
 const ids = {
   admin: "00000000-0000-4000-8000-000000000001",
   public: "00000000-0000-4000-8000-000000000002",
-  vip: "00000000-0000-4000-8000-000000000003",
+  member: "00000000-0000-4000-8000-000000000003",
 };
 async function setup() {
   const db = new PGlite();
@@ -37,14 +37,14 @@ async function setup() {
   await db.query("update public.profiles set role='admin' where id=$1", [
     ids.admin,
   ]);
-  await db.query("update public.profiles set role='vip' where id=$1", [
-    ids.vip,
+  await db.query("update public.profiles set role='public' where id=$1", [
+    ids.member,
   ]);
   return db;
 }
 async function as(
   db: PGlite,
-  role: "admin" | "public" | "vip" | "service_role" | "anon",
+  role: "admin" | "public" | "member" | "service_role" | "anon",
 ) {
   await db.exec("reset role");
   await db.query(
@@ -81,13 +81,13 @@ const change = {
   tp2: 2020,
   tp3: 2030,
   reasoning: "An administrator-reviewed staging revision with a tighter stop.",
-  access: "vip",
+  access: "public",
 };
 test("migrations enforce RLS, review, immutable roles and audited optimistic revisions", async () => {
   const db = await setup();
   try {
     await as(db, "admin");
-    const id = await draft(db, "vip");
+    const id = await draft(db, "public");
     await assert.rejects(
       db.query("select public.transition_signal($1,'active')", [id]),
       /Invalid lifecycle/,
@@ -114,9 +114,9 @@ test("migrations enforce RLS, review, immutable roles and audited optimistic rev
     await as(db, "public");
     assert.equal(
       (await db.query("select * from public.signals")).rows.length,
-      0,
+      1,
     );
-    await as(db, "vip");
+    await as(db, "member");
     assert.equal(
       (await db.query("select * from public.signals")).rows.length,
       1,
@@ -226,14 +226,14 @@ test("webhook ingestion is service-only, idempotent, conflict-aware and stays un
     await db.close();
   }
 });
-test("push fanout respects VIP, preferences, lease tokens, retries and revocation", async () => {
+test("push fanout respects member preferences, preferences, lease tokens, retries and revocation", async () => {
   const db = await setup();
   try {
     const sub = {
       endpoint: "https://fcm.googleapis.com/fcm/send/test-device",
       keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
     };
-    await as(db, "vip");
+    await as(db, "member");
     await db.query("select public.register_push_subscription($1)", [
       JSON.stringify(sub),
     ]);
@@ -245,7 +245,7 @@ test("push fanout respects VIP, preferences, lease tokens, retries and revocatio
       /Subscription unavailable/,
     );
     await as(db, "admin");
-    const id = await draft(db, "vip");
+    const id = await draft(db, "public");
     await db.query("select public.transition_signal($1,'pending')", [id]);
     await db.query("select public.transition_signal($1,'active')", [id]);
     await as(db, "service_role");
@@ -286,8 +286,11 @@ test("push fanout respects VIP, preferences, lease tokens, retries and revocatio
       ).rows[0].jobs.length,
       0,
     );
-    await as(db, "admin");
-    await db.query("select public.set_member_role($1,'public')", [ids.vip]);
+    await as(db, "member");
+    await db.query(
+      "update public.notification_preferences set push_enabled=false where user_id=$1",
+      [ids.member],
+    );
     await db.exec("reset role");
     await db.exec(
       "update public.notification_deliveries set next_attempt_at=now()-interval '1 minute'",
@@ -401,7 +404,7 @@ test("push completion is idempotent and expired devices retain delivery history"
     await db.close();
   }
 });
-test("announcements preserve VIP visibility and fanout honors preference categories", async () => {
+test("announcements preserve member visibility and fanout honors preference categories", async () => {
   const db = await setup();
   try {
     const sub = {
@@ -425,14 +428,14 @@ test("announcements preserve VIP visibility and fanout honors preference categor
       "select public.publish_announcement('Public update','A public staging announcement.','public')",
     );
     await db.query(
-      "select public.publish_announcement('VIP update','A VIP-only staging announcement.','vip')",
+      "select public.publish_announcement('Member update','A member staging announcement.','public')",
     );
     await as(db, "public");
     assert.equal(
       (await db.query("select * from public.announcements")).rows.length,
-      1,
+      2,
     );
-    await as(db, "vip");
+    await as(db, "member");
     assert.equal(
       (await db.query("select * from public.announcements")).rows.length,
       2,
@@ -1654,7 +1657,7 @@ function tickFixture(sell = false) {
     execution_enabled: false,
   };
 }
-test("tick publication is VIP-only, duplicate-safe, structural and monitored through the existing lifecycle", async () => {
+test("tick publication is member, duplicate-safe, structural and monitored through the existing lifecycle", async () => {
   const db = await setup();
   try {
     await as(db, "admin");
@@ -1688,7 +1691,7 @@ test("tick publication is VIP-only, duplicate-safe, structural and monitored thr
     assert.equal(
       (
         await db.query<{ n: number }>(
-          "select count(*)::int n from public.notification_outbox where signal_id=$1 and event_type='signal.active' and access='vip'",
+          "select count(*)::int n from public.notification_outbox where signal_id=$1 and event_type='signal.active' and access='public'",
           [row.id],
         )
       ).rows[0].n,
@@ -1697,10 +1700,10 @@ test("tick publication is VIP-only, duplicate-safe, structural and monitored thr
     await as(db, "public");
     assert.equal(
       (await db.query("select * from public.signals")).rows.length,
-      0,
+      1,
     );
     await assert.rejects(apply(), /permission denied/);
-    await as(db, "vip");
+    await as(db, "member");
     assert.equal(
       (await db.query("select * from public.signals")).rows.length,
       1,
@@ -2024,6 +2027,63 @@ test("trendline structural stops are recomputed from snapshot evidence and canno
       )
     ).rows[0].allowed,
     false,
+  );
+  await db.close();
+});
+
+test("single member access removes tier grants while retaining administrator and anonymous boundaries", async () => {
+  const db = await setup();
+  await as(db, "admin");
+  const id = await draft(db);
+  await db.query("select public.transition_signal($1,'pending')", [id]);
+  await db.query("select public.transition_signal($1,'active')", [id]);
+  for (const role of ["public", "member"] as const) {
+    await as(db, role);
+    assert.equal(
+      (await db.query("select * from public.signals where id=$1", [id])).rows
+        .length,
+      1,
+    );
+    await assert.rejects(
+      db.query("select public.transition_signal($1,'closed')", [id]),
+      /Administrator required/,
+    );
+  }
+  await as(db, "anon");
+  await assert.rejects(
+    db.query("select * from public.signals"),
+    /permission denied/,
+  );
+  await db.exec("reset role");
+  await assert.rejects(
+    db.query("update public.profiles set role='vip' where id=$1", [ids.public]),
+    /profiles_member_or_admin/,
+  );
+  await assert.rejects(
+    db.query("update public.signals set access='vip' where id=$1", [id]),
+    /signals_member_audience/,
+  );
+  const state = (
+    await db.query<{
+      membership: string | null;
+      role_rpc: string | null;
+      old_helper: string | null;
+    }>(
+      "select to_regclass('public.membership_entitlements')::text membership,to_regprocedure('public.set_member_role(uuid,text)')::text role_rpc,to_regprocedure('public.has_vip()')::text old_helper",
+    )
+  ).rows[0];
+  assert.deepEqual(state, {
+    membership: null,
+    role_rpc: null,
+    old_helper: null,
+  });
+  assert.equal(
+    (
+      await db.query<{ count: number }>(
+        "select count(*)::int count from public.profiles where role='admin'",
+      )
+    ).rows[0].count,
+    1,
   );
   await db.close();
 });

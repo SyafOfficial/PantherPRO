@@ -13,7 +13,7 @@ export const signalSchema = z
     tp2: z.number().positive(),
     tp3: z.number().positive(),
     reasoning: z.string().trim().min(20).max(2000),
-    access: z.enum(["public", "vip"]),
+    access: z.literal("public"),
   })
   .superRefine((s, ctx) => {
     if (
@@ -45,10 +45,7 @@ export const signalSchema = z
           "Stop loss and ordered targets must match the signal direction.",
       });
   });
-export type Role = "public" | "vip" | "admin";
-export function canAccess(role: Role, access: "public" | "vip") {
-  return access === "public" || role === "vip" || role === "admin";
-}
+export type Role = "public" | "admin";
 export function canTransition(from: string, to: string) {
   return (
     (

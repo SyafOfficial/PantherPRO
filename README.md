@@ -4,9 +4,9 @@ A mobile-first gold intelligence terminal built with Next.js App Router, TypeScr
 
 ## Current scope
 
-Phases 1–4 development foundation: seven client sections, responsive navigation, a separate administration workspace, Supabase email/password authentication, role-based database authorization, manual signal drafts and approval, membership management, audit logs, authenticated TradingView ingestion, optimistic signal revisions, member announcements, notification settings, a retrying Web Push worker, licensed-data import gates, quote observation, calendar revisions, source-backed technical/news analysis, PWA manifest, icons and an offline fallback. Styling uses custom CSS tokens rather than Tailwind; no UI service or font connection is required.
+Phases 1–4 development foundation: six client sections, responsive navigation, a separate administration workspace, Supabase email/password authentication, role-based database authorization, manual signal drafts and approval, audit logs, authenticated TradingView ingestion, optimistic signal revisions, member announcements, notification settings, a retrying Web Push worker, licensed-data import gates, quote observation, calendar revisions, source-backed technical/news analysis, PWA manifest, icons and an offline fallback. Styling uses custom CSS tokens rather than Tailwind; no UI service or font connection is required.
 
-**Demo is read-only.** The example signal and chart are fictional, dated fixtures. There is no live market connection and no verified performance. Connecting Supabase removes all demo signals and chart data; it never fills a failed live query with fixtures. Anonymous visitors cannot read database signals. Authenticated public members see public published content; VIP and administrator members can access VIP content.
+**Demo is read-only.** The example signal and chart are fictional, dated fixtures. There is no live market connection and no verified performance. Connecting Supabase removes all demo signals and chart data; it never fills a failed live query with fixtures. Anonymous visitors cannot read database signals. Authenticated members share access to published member content; administration remains restricted to administrators.
 
 TradingView, market prices, the economic calendar, AI, push delivery and payments are **not connected**. The health endpoint reports this explicitly. This is a development foundation, not a production trading service. It never executes trades.
 
@@ -31,7 +31,7 @@ No environment variables are needed for demo mode. For a production build use `n
 4. Restart Next.js. Sign up, confirm the email, then sign in. Accounts start with public access regardless of supplied user metadata.
 5. Bootstrap the first admin in the trusted SQL editor: `update public.profiles set role = 'admin' where id = '<verified-auth-user-uuid>';`. Confirm the user's identity before running this. Never grant admin using client metadata. Subsequent admin grants also require a privileged database operation.
 6. Open `/admin`. Create a draft with ordered targets and a stop on the correct side of entry, submit for review, then approve and publish. Review is mandatory, but a different second approver is not yet required. Public clients cannot read drafts or pending review records. No market checks validate the administrator's price assumptions yet.
-7. Sign in as a separate public member and VIP member. Verify VIP visibility and admin denial. Database policies are the authorization boundary; client role helper tests are not a substitute for deployed RLS tests.
+7. Sign in as separate member accounts. Verify published-content visibility and administrator denial. Database policies are the authorization boundary; client role helper tests are not a substitute for deployed RLS tests.
 
 Realtime subscribes to authorized signal changes; a 60-second refresh also rechecks current access. Subscription delivery, signup, role policies and approval RPCs require a real Supabase project and have not been validated in this demo environment.
 
@@ -41,7 +41,7 @@ See [integration setup and acceptance tests](docs/integrations.md) and [Phase 2 
 
 ## Phone app and trading-method focus
 
-Open `/install` for iPhone/Android installation guidance, then `/account` for device registration and notification preferences. A real HTTPS deployment and configured push worker are required for live phone notifications; no public deployment or physical-device delivery has been verified here. There is no daily signal quota.
+Open `/guide` for iPhone/Android installation guidance, then `/account` for device registration and notification preferences. A real HTTPS deployment and configured push worker are required for live phone notifications; no public deployment or physical-device delivery has been verified here. There is no daily signal quota.
 
 Signals support QM, BOS, CHOCH and trendline tags, M30/H1/H4/D1/W1 setup timeframes and strictly higher optional context. Apply migration 006 after 001–005. Tags are not automated detections; automated method rules must be explicitly configured before activation. XAUUSD news coverage now includes Fed rates/FOMC, NFP, CPI, PPI and PMI. See [phone, setups and news](docs/phone-and-setups.md).
 
