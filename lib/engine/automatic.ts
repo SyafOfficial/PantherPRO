@@ -292,7 +292,7 @@ export function scanAutomatic(raw: unknown, now: number) {
               breakout: virtualCandle(breakBar, frame),
               retestM5: virtualCandle(confirm, "M5"),
               ...targets,
-              reason: `Automatic ${trigger.method} ${frame} ${buy ? "BUY" : "SELL"}: completed setup candle and M5 pullback held ${level.toFixed(s.digits)}; entry remains inside ${zoneLow}-${zoneHigh}. ${higher ? `${higher} structure aligns.` : "Monthly is the highest configured setup."} Tick activity ratio ${ratio === null ? "unavailable" : ratio.toFixed(2)}; aggressive imbalance unavailable. News feed unavailable. SL triggers on Bid or Ask touch at ${((buy ? zoneLow : zoneHigh) + (buy ? -3 : 3)).toFixed(s.digits)}. TP1–TP3: ${candidateTargetText(targets)} Trade at your own risk with proper money management.`,
+              reason: `Automatic ${trigger.method} ${frame} ${buy ? "BUY" : "SELL"}: completed setup candle and M5 pullback held ${level.toFixed(s.digits)}; entry remains inside ${zoneLow}-${zoneHigh}. ${higher ? `${higher} structure aligns.` : "Monthly is the highest configured setup."} Tick activity ratio ${ratio === null ? "unavailable" : ratio.toFixed(2)}; aggressive imbalance unavailable. News feed unavailable. SL requires completed M5 close at or ${buy ? "below" : "above"} ${((buy ? zoneLow : zoneHigh) + (buy ? -3 : 3)).toFixed(s.digits)}. TP1–TP3: ${candidateTargetText(targets)} Trade at your own risk with proper money management.`,
               config: {
                 pipSize: 0.1,
                 maxZonePips: 80,

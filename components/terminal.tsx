@@ -1001,7 +1001,7 @@ function SignalCard({
       <div className="signal-levels">
         {[
           [s.engine_version ? "ENTRY ZONE" : "ENTRY", s.entry],
-          ["STOP LOSS", s.stop_loss],
+          [s.engine_version ? "M5 CLOSE SL" : "STOP LOSS", s.stop_loss],
           ["TAKE PROFIT 1", s.tp1],
           ["TAKE PROFIT 2", s.tp2],
           ["TAKE PROFIT 3", s.tp3],

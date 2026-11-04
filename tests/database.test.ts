@@ -24,6 +24,9 @@ async function setup() {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile("supabase/proposals/signal_retention_30_days.sql", "utf8"),
+  );
   await db.query(
     "insert into auth.users(id) values ($1),($2),($3)",
     Object.values(ids),
@@ -1391,7 +1394,7 @@ test("automatic plans fail closed on wrong SL buffer and SELL without ask histor
   assert.equal(count.rows[0].total, 0);
   await db.close();
 });
-test("automatic engine uses live touch, not an old candle close", async () => {
+test("automatic SL ignores wicks until an inclusive M5 close", async () => {
   const db = await setup();
   await as(db, "admin");
   await db.query("select public.set_automatic_engine(true)");
@@ -1402,7 +1405,7 @@ test("automatic engine uses live touch, not an old candle close", async () => {
     first,
     JSON.stringify([f.plan]),
   ]);
-  const next = await f.put(1, 100, 96);
+  const next = await f.put(1, 95, 96.01);
   await db.query("select public.apply_automatic_engine($1,$2)", [next, "[]"]);
   await as(db, "admin");
   const still = await db.query<{ status: string }>(
@@ -1421,7 +1424,7 @@ test("automatic engine uses live touch, not an old candle close", async () => {
     initial,
     JSON.stringify([g.plan]),
   ]);
-  const invalid = await g.put(1, 95, 95);
+  const invalid = await g.put(1, 100, 96);
   await db2.query("select public.apply_automatic_engine($1,$2)", [
     invalid,
     "[]",
@@ -1524,7 +1527,7 @@ test("paused new publication preserves existing monitoring; data gaps suppress g
   assert.equal(row.rows[0].tp1_hit_at, null);
   await db2.close();
 });
-test("SELL SL uses exact Ask touch without waiting for candle close", async () => {
+test("SELL SL uses inclusive ask M5 close, not quote touches", async () => {
   const db = await setup();
   await as(db, "admin");
   await db.query("select public.set_automatic_engine(true)");
@@ -1542,7 +1545,7 @@ test("SELL SL uses exact Ask touch without waiting for candle close", async () =
     time,
     JSON.stringify([sell]),
   ]);
-  const next = await f.put(1, 103.8, 100);
+  const next = await f.put(1, 100, 104);
   await db.query("select public.apply_automatic_engine($1,$2)", [next, "[]"]);
   await as(db, "admin");
   const row = await db.query<{ status: string; outcome: string | null }>(

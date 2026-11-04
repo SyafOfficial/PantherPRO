@@ -24,6 +24,9 @@ async function setup() {
       "utf8",
     ),
   );
+  await db.exec(
+    await readFile("supabase/proposals/signal_retention_30_days.sql", "utf8"),
+  );
   await db.query(
     "insert into auth.users(id) values ($1),($2),($3)",
     Object.values(ids),
@@ -77,6 +80,7 @@ async function tracked(buy: boolean) {
     bid: number,
     ask: number,
     ticks?: ReturnType<typeof quote>[],
+    m5Close?: number,
   ) => {
     const at = new Date((base + offset) * 1000).toISOString();
     const snapshot = {
@@ -88,7 +92,21 @@ async function tracked(buy: boolean) {
       exported_at_utc: at.slice(0, 19).replace(/-/g, ".").replace("T", " "),
       server_time_raw: base + offset,
       quote: quote(offset, bid, ask),
-      series: [],
+      series:
+        m5Close == null
+          ? []
+          : [
+              {
+                timeframe: "M5",
+                candles: [
+                  { opened_at_server_raw: base + offset - 300, close: m5Close },
+                ],
+              },
+            ],
+      ask_m5:
+        m5Close == null
+          ? []
+          : [{ opened_at_server_raw: base + offset - 300, close: m5Close }],
       ...(ticks ? { quote_ticks: ticks } : {}),
     };
     return db.query("select ingest_mt5_snapshot($1,$2,$3)", [
@@ -128,13 +146,15 @@ async function tracked(buy: boolean) {
   return { db, id, put, quote, events };
 }
 for (const buy of [true, false]) {
-  test(`${buy ? "BUY" : "SELL"} exact SL touch closes immediately without M5, duplicate safe`, async () => {
+  test(`${buy ? "BUY" : "SELL"} SL touch alone stays active; exact M5 close triggers once`, async () => {
     const f = await tracked(buy);
     try {
       await f.put(1, buy ? 96.01 : 103.79, buy ? 96.21 : 103.99);
       assert.equal((await f.events()).includes("signal.stop_hit"), false);
       await f.put(2, buy ? 96 : 103.8, buy ? 96.2 : 104);
-      await f.put(2, buy ? 96 : 103.8, buy ? 96.2 : 104);
+      assert.equal((await f.events()).includes("signal.stop_hit"), false);
+      await f.put(3, 100, 100.2, undefined, buy ? 96 : 104);
+      await f.put(3, 100, 100.2, undefined, buy ? 96 : 104);
       assert.deepEqual(await f.events(), ["signal.stop_hit"]);
       const row = (
         await f.db.query<{ status: string; outcome: null }>(

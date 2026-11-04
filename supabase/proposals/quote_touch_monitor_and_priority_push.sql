@@ -22,18 +22,43 @@ begin
   signal_key=item.signal_id; initial_tick=item.last_tick_msc;
   original_snapshot=feed.snapshot; original_export=feed.exported_at;
   for tick in
-   select q, ord from (
-    select value q, ordinality ord from jsonb_array_elements(coalesce(feed.snapshot->'quote_ticks','[]'::jsonb)) with ordinality
-    union all select feed.snapshot->'quote', 5001::bigint
-   ) quotes
-   where (q->>'last_tick_time_msc_raw')::bigint>coalesce(initial_tick,
-    ((original_snapshot->>'server_time_raw')::bigint*1000-extract(epoch from (original_export-item.last_snapshot))*1000)::bigint)
-   order by (q->>'last_tick_time_msc_raw')::bigint,ord
+   select q,ord,kind,raw_msc from (
+    select value q,ordinality ord,'quote' kind,(value->>'last_tick_time_msc_raw')::bigint raw_msc
+     from jsonb_array_elements(coalesce(original_snapshot->'quote_ticks','[]'::jsonb)) with ordinality
+    union all select original_snapshot->'quote',5001::bigint,'quote',(original_snapshot->'quote'->>'last_tick_time_msc_raw')::bigint
+    union all
+    select c,0::bigint,'m5',((c->>'opened_at_server_raw')::bigint+300)*1000
+     from jsonb_array_elements(case when item.direction='BUY' then
+      coalesce((select x->'candles' from jsonb_array_elements(original_snapshot->'series') x where x->>'timeframe'='M5'),'[]'::jsonb)
+      else coalesce(original_snapshot->'ask_m5','[]'::jsonb) end) c
+   ) observations
+   where (kind='quote' and raw_msc>coalesce(initial_tick,
+    ((original_snapshot->>'server_time_raw')::bigint*1000-extract(epoch from (original_export-item.last_snapshot))*1000)::bigint))
+    or (kind='m5' and (q->>'opened_at_server_raw')::bigint>item.last_m5_open
+     and (original_snapshot->>'server_time_raw')::bigint-raw_msc/1000 between 0 and 300)
+   order by raw_msc,ord
   loop
    select t.*,s.direction,s.entry,s.entry_low,s.entry_high,s.stop_loss,s.tp1,s.tp2,s.tp3,s.tp1_hit_at,s.tp2_hit_at,s.tp3_hit_at,s.break_even,s.access into item
     from public.automatic_engine_tracking t join public.signals s on s.id=t.signal_id
     where t.signal_id=signal_key and t.state='tracking' and s.status='active';
    if not found then exit;end if;
+   buy=item.direction='BUY';
+   if tick.kind='m5' then
+    stamp=(tick.q->>'opened_at_server_raw')::bigint;
+    update public.automatic_engine_tracking set last_m5_open=stamp where signal_id=signal_key;
+    if (buy and (tick.q->>'close')::numeric<=item.stop_loss) or (not buy and (tick.q->>'close')::numeric>=item.stop_loss) then
+     observed=(tick.q->>'close')::numeric;
+     feed.exported_at=least(original_export,original_export-make_interval(secs => (original_snapshot->>'server_time_raw')::double precision-tick.raw_msc::double precision/1000));
+     update public.signals set status='closed',closed_at=now(),stop_observed_at=feed.exported_at,reconciliation_state='stopped' where id=signal_key;
+     update public.automatic_engine_tracking set state='closed',last_snapshot=original_export where signal_id=signal_key;
+     insert into public.notification_outbox(event_key,signal_id,event_type,access,payload)
+      values(signal_key::text||':engine-sl',signal_key,'signal.stop_hit',item.access,
+       jsonb_build_object('basis',case when buy then 'bid_m5_close' else 'ask_m5_close' end,'close',observed,'broker_open',stamp,'observed_at',feed.exported_at,'observation_only',true)) on conflict do nothing;
+     insert into public.audit_logs(action,entity_id,details) values('engine.sl_observed',signal_key,jsonb_build_object('basis',case when buy then 'bid_m5_close' else 'ask_m5_close' end,'close',observed,'execution','hypothetical'));
+     events=events+1;
+    end if;
+    continue;
+   end if;
    feed.snapshot=jsonb_set(original_snapshot,'{quote}',tick.q);
    feed.exported_at=least(original_export,original_export-make_interval(secs => (original_snapshot->>'server_time_raw')::double precision-(tick.q->>'last_tick_time_msc_raw')::double precision/1000));
    update public.automatic_engine_tracking set last_tick_msc=(tick.q->>'last_tick_time_msc_raw')::bigint where signal_id=signal_key;
@@ -46,17 +71,6 @@ begin
    values(item.signal_id::text||':engine-be-return',item.signal_id,'signal.be_hit',item.access,
     jsonb_build_object('entry_low',item.entry_low,'entry_high',item.entry_high,'observed_price',quote_price,'observed_at',feed.exported_at,'observation_only',true)) on conflict do nothing;
    insert into public.audit_logs(action,entity_id,details) values('engine.be_zone_return_observed',item.signal_id,jsonb_build_object('observed_price',quote_price,'broker_execution_verified',false));
-   events=events+1;continue;
-  end if;
-  -- Any observed Bid/Ask touch counts; never wait for an M5 close.
-  if (buy and least((feed.snapshot->'quote'->>'bid')::numeric,(feed.snapshot->'quote'->>'ask')::numeric)<=item.stop_loss)
-     or (not buy and greatest((feed.snapshot->'quote'->>'bid')::numeric,(feed.snapshot->'quote'->>'ask')::numeric)>=item.stop_loss) then
-   update public.signals set status='closed',closed_at=now(),stop_observed_at=feed.exported_at,reconciliation_state='stopped' where id=item.signal_id;
-   update public.automatic_engine_tracking set state='closed',last_snapshot=original_export where signal_id=item.signal_id;
-   insert into public.notification_outbox(event_key,signal_id,event_type,access,payload)
-   values(item.signal_id::text||':engine-sl',item.signal_id,'signal.stop_hit',item.access,
-    jsonb_build_object('basis','bid_or_ask_touch','observed_at',feed.exported_at,'bid',feed.snapshot->'quote'->'bid','ask',feed.snapshot->'quote'->'ask','observation_only',true)) on conflict do nothing;
-   insert into public.audit_logs(action,entity_id,details) values('engine.sl_observed',item.signal_id,jsonb_build_object('basis','bid_or_ask_touch','execution','hypothetical'));
    events=events+1;continue;
   end if;
   -- Management uses the published entry, including exactly $5 = 50 pips.
