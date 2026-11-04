@@ -97,13 +97,17 @@ self.addEventListener("push", (event) => {
         ["signal.tp1", ["HIT TP 1 Lads!", "Collect half now and Set BE"]],
         ["signal.tp2", ["HIT TP 2 Lads!", "Collect half now and Set BE"]],
         ["signal.tp3", ["HIT TP3!", "CLOSE ALL NOW"]],
-        ["signal.stop_hit", ["HIT SL!", "Ready for recovery"]],
+        [
+          "signal.stop_hit",
+          payload.title === "Original SL reached" &&
+          payload.body ===
+            "50-pip BE alert was issued earlier. Check your managed position."
+            ? [payload.title, payload.body]
+            : ["HIT SL!", "Ready for recovery"],
+        ],
         [
           "signal.break_even",
-          [
-            "Trade management · Panther FX",
-            "Close Partial and SET Break Even now!",
-          ],
+          ["Price running 50 pips!", "Collect half and Set BE"],
         ],
       ]);
       const copy =

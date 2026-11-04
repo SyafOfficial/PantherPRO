@@ -1779,3 +1779,72 @@ test("tick publication blocks unconfirmed SELL evidence and disabled policy", as
     await db.close();
   }
 });
+
+test("50-pip alert uses entry inclusive for BUY and SELL, survives retrace and is emitted once", async () => {
+  for (const buy of [true, false]) {
+    const db = await setup();
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    const f = await autoFixture(db, { ask: true });
+    if (!buy)
+      Object.assign(f.plan, {
+        direction: "SELL",
+        entry: 100,
+        stop: 104,
+        targets: [95, 90, 80],
+      });
+    const base = f.plan.entry;
+    const time = await f.put();
+    await db.query("select public.apply_automatic_engine($1,$2)", [
+      time,
+      JSON.stringify([f.plan]),
+    ]);
+    const tick = async (offset: number, exitPrice: number, close = 100) => {
+      const at = await f.put(offset, buy ? exitPrice : exitPrice - 0.2, close);
+      await db.query("select public.apply_automatic_engine($1,'[]'::jsonb)", [
+        at,
+      ]);
+    };
+    await tick(1, buy ? base + 4.99 : base - 4.99);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from notification_outbox where event_type='signal.break_even'",
+        )
+      ).rows[0].n,
+      0,
+    );
+    await tick(2, buy ? base + 5 : base - 5);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from notification_outbox where event_type='signal.break_even'",
+        )
+      ).rows[0].n,
+      1,
+    );
+    await tick(3, buy ? base + 6 : base - 6);
+    await tick(4, base);
+    const events = await db.query<{ n: number }>(
+      "select count(*)::int n from notification_outbox where event_type='signal.break_even'",
+    );
+    assert.equal(events.rows[0].n, 1);
+    const result = await db.query<{
+      break_even: boolean;
+      max_favorable_movement: string;
+      outcome: null;
+    }>("select break_even,max_favorable_movement,outcome from signals");
+    assert.equal(result.rows[0].break_even, true);
+    assert.equal(Number(result.rows[0].max_favorable_movement), 6);
+    assert.equal(result.rows[0].outcome, null);
+    assert.equal(
+      Number(
+        (await db.query<{ stop_loss: string }>("select stop_loss from signals"))
+          .rows[0].stop_loss,
+      ),
+      f.plan.stop,
+    );
+    await db.close();
+  }
+});

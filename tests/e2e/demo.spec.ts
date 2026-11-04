@@ -220,7 +220,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
     [81, "signal.tp2", "HIT TP 2 Lads!"],
     [82, "signal.tp3", "HIT TP3!"],
     [83, "signal.stop_hit", "HIT SL!"],
-    [84, "signal.break_even", "Trade management · Panther FX"],
+    [84, "signal.break_even", "Price running 50 pips!"],
   ] as const) {
     await page.evaluate(async () => {
       const registration = await navigator.serviceWorker.ready;
@@ -237,7 +237,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
       .toBe(expectedTitle);
     if (eventType === "signal.break_even")
       expect((await notifications())[0].body).toBe(
-        "Close Partial and SET Break Even now!",
+        "Collect half and Set BE",
       );
   }
 });

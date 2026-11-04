@@ -107,4 +107,38 @@ test("device worker renders multiline entry prices and exact TP1 management text
   });
   assert.equal(shown[4].title, "HIT SL!");
   assert.equal(shown[4].options.body, "Ready for recovery");
+  await push(
+    notificationPayload({ ...delivery, event_type: "signal.break_even" }),
+  );
+  assert.equal(shown[5].title, "Price running 50 pips!");
+  assert.equal(shown[5].options.body, "Collect half and Set BE");
+  await push(
+    notificationPayload(
+      { ...delivery, event_type: "signal.stop_hit" },
+      { ...signal, break_even: true },
+    ),
+  );
+  assert.equal(shown[6].title, "Original SL reached");
+  assert.equal(
+    shown[6].options.body,
+    "50-pip BE alert was issued earlier. Check your managed position.",
+  );
+});
+
+test("50-pip management push has exact copy and distinguishes a later original stop", () => {
+  const alert = notificationPayload({
+    ...delivery,
+    event_type: "signal.break_even",
+  });
+  assert.equal(alert.title, "Price running 50 pips!");
+  assert.equal(alert.body, "Collect half and Set BE");
+  const stopped = notificationPayload(
+    { ...delivery, event_type: "signal.stop_hit" },
+    { ...signal, break_even: true },
+  );
+  assert.equal(stopped.title, "Original SL reached");
+  assert.equal(
+    stopped.body,
+    "50-pip BE alert was issued earlier. Check your managed position.",
+  );
 });

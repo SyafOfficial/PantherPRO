@@ -44,6 +44,7 @@ export const subscriptionSchema = z
   })
   .strict();
 export type PushSignalDetails = {
+  break_even?: boolean;
   direction: string;
   entry: number | string;
   entry_low: number | string | null;
@@ -65,6 +66,14 @@ export function notificationPayload(
 ) {
   let title = "Panther FX intelligence";
   let body = "A new update is available. Open your terminal to review it.";
+  if (delivery.event_type === "signal.break_even") {
+    title = "Price running 50 pips!";
+    body = "Collect half and Set BE";
+  }
+  if (delivery.event_type === "signal.stop_hit" && signal?.break_even) {
+    title = "Original SL reached";
+    body = "50-pip BE alert was issued earlier. Check your managed position.";
+  }
   if (delivery.event_type === "signal.active" && signal) {
     const values = [
       signal.entry,

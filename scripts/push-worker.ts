@@ -155,16 +155,23 @@ async function cycle() {
     }
     try {
       let signal: PushSignalDetails | null = null;
-      if (item.event_type === "signal.active" && item.signal_id) {
+      if (
+        ["signal.active", "signal.stop_hit"].includes(item.event_type) &&
+        item.signal_id
+      ) {
         const { data, error } = await db
           .from("signals")
           .select(
-            "direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,status,published_at",
+            "direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,break_even,status,published_at",
           )
           .eq("id", item.signal_id)
           .maybeSingle();
         if (error) throw new Error("Entry notification lookup failed");
-        if (!data || data.status !== "active" || !data.published_at) {
+        if (
+          !data ||
+          (item.event_type === "signal.active" && data.status !== "active") ||
+          !data.published_at
+        ) {
           await finish(item, "skipped", "signal_not_active");
           continue;
         }
