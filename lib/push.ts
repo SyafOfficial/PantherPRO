@@ -44,6 +44,7 @@ export const subscriptionSchema = z
   })
   .strict();
 export type PushSignalDetails = {
+  status?: string;
   break_even?: boolean;
   direction: string;
   entry: number | string;
@@ -104,6 +105,10 @@ export function notificationPayload(
       `TP2: ${price(values[3])}`,
       `TP3: ${price(values[4])}`,
     ].join("\n");
+    if (signal.status && signal.status !== "active") {
+      title += " · Closed";
+      body = "Setup closed. Do not enter.\n" + body;
+    }
   }
   return {
     id: delivery.id,

@@ -41,6 +41,7 @@ try{
    if($_.Exception.Response){$status=[int]$_.Exception.Response.StatusCode}
    if($status){Write-Warning ('Upload not accepted; HTTP '+$status+'. Check enabled bridge, matching secret and server migrations.')}else{Write-Warning 'Snapshot unavailable/stale or connection failed. Check MT5, PC clock and connection.'}
   }
-  Start-Sleep -Seconds 10
+  Start-Sleep -Milliseconds 250
  }
 }finally{$secret=$null;$secure.Dispose()}
+

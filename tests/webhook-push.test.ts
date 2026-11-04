@@ -155,3 +155,27 @@ test("browser origin uses the real host behind Next bind addresses and rejects c
   ])
     assert.equal(sameOriginMutation(make(origin)), false, origin);
 });
+
+test("an entry that closed before push is explicitly non-actionable", () => {
+  const result = notificationPayload(
+    {
+      id: "delivery-id",
+      outbox_id: "outbox-id",
+      event_type: "signal.active",
+      signal_id: "signal-id",
+    },
+    {
+      status: "closed",
+      direction: "BUY",
+      entry: 100,
+      entry_low: 99,
+      entry_high: 101,
+      stop_loss: 96,
+      tp1: 105,
+      tp2: 110,
+      tp3: 120,
+    },
+  );
+  assert.match(result.title, /Closed/);
+  assert.match(result.body, /^Setup closed\. Do not enter\./);
+});
