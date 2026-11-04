@@ -13,6 +13,7 @@ test("bounce BUY and SELL require a fresh directional retest; line projection ch
     assert.equal(p.direction, x.higherTrend === "up" ? "BUY" : "SELL");
     assert.notEqual(p.lineAtEvent, p.lineAtConfirmation);
     assert.ok(p.rewardRisk >= 1.5);
+    assert.ok(Math.abs(p.stop / x.point - Math.round(p.stop / x.point)) < 1e-8);
     assert.ok(p.direction === "BUY" ? p.stop < 10.8 : p.stop > 89.2);
   }
 });

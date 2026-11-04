@@ -58,7 +58,8 @@ These are provisional research parameters, not optimized constants:
   M5 rejection candle; no chasing. The existing 80-pip maximum zone width is retained.
 - Bounce stop: beyond the second structural anchor and M5 retest extreme.
 - Breakout stop: beyond the breakout candle and M5 retest extreme.
-- Stop buffer: max(0.15 setup ATR, twice spread, two price points).
+- Stop buffer: max(0.15 setup ATR, twice spread, two price points). Stops are
+  rounded outward to the symbol price point, matching executable quote precision.
 - The nearest intact target is supplied by the existing structural target
   detector. Minimum reward/risk is 1.5 measured from the least favorable zone
   edge. Targets are never moved farther away just to pass this filter.

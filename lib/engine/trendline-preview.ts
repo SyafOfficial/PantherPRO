@@ -231,7 +231,11 @@ export function previewTrendline(input: {
         spread * 2,
         point * 2,
       );
-      const stop = extreme - sign * buffer;
+      const rawStop = extreme - sign * buffer;
+      const stop =
+        (buy
+          ? Math.floor((rawStop + 1e-9) / point)
+          : Math.ceil((rawStop - 1e-9) / point)) * point;
       const target = buy ? input.target.buy : input.target.sell;
       const risk = sign * (entry - stop);
       if (target == null || !Number.isFinite(target) || stop <= 0 || risk <= 0)

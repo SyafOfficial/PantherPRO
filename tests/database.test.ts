@@ -1976,6 +1976,7 @@ test("trendline structural stops are recomputed from snapshot evidence and canno
       breakoutOpenedServer: proposal.eventOpened,
       trendline: {
         version: proposal.version,
+        precision: "point",
         subtype: proposal.subtype,
         anchors: proposal.anchors,
         eventOpened: proposal.eventOpened,

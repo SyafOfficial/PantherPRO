@@ -15,7 +15,7 @@ export type LiveTrendlinePlan = AutomaticPlan & {
   trendline: Pick<
     TrendlineProposal,
     "version" | "subtype" | "anchors" | "eventOpened" | "confirmationOpened"
-  >;
+  > & { precision: "point" };
 };
 export function makeTrendlinePlan(
   proposal: TrendlineProposal & { timeframe: string; higherTimeframe: string },
@@ -83,6 +83,7 @@ export function makeTrendlinePlan(
     tickVolumeRatio: null,
     trendline: {
       version: proposal.version,
+      precision: "point",
       subtype: proposal.subtype,
       anchors: proposal.anchors,
       eventOpened: proposal.eventOpened,
