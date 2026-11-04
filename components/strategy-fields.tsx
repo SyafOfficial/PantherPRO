@@ -27,8 +27,8 @@ export default function StrategyFields({
           value={String(signal.higher_timeframe ?? "")}
         />
         <p>
-          Method: {String(signal.strategy ?? "Unclassified")} · setup{" "}
-          {String(signal.timeframe ?? "Not supplied")} · higher context{" "}
+          Strategy: {String(signal.strategy ?? "Unclassified")} · Setup{" "}
+          {String(signal.timeframe ?? "Not supplied")} · Higher Timeframe{" "}
           {String(signal.higher_timeframe ?? "Not supplied")}. Published method
           tags are fixed.
         </p>
@@ -52,7 +52,7 @@ export default function StrategyFields({
         </select>
       </label>
       <label>
-        Setup timeframe
+        Setup Timeframe
         <select
           name="timeframe"
           defaultValue={String(signal.timeframe ?? "")}
@@ -67,7 +67,7 @@ export default function StrategyFields({
         </select>
       </label>
       <label>
-        Higher timeframe context
+        Higher Timeframe
         <select
           name="higher_timeframe"
           defaultValue={String(signal.higher_timeframe ?? "")}
