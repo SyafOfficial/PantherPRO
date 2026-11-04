@@ -117,7 +117,10 @@ self.addEventListener("push", (event) => {
           ? typeof payload.title === "string" &&
             payload.title.startsWith("Panther FX · XAUUSD ") &&
             typeof payload.body === "string" &&
-            payload.body.startsWith("Entry: ") &&
+            (payload.body.startsWith("Entry: ") ||
+              payload.body.startsWith(
+                "Setup closed. Do not enter.\nEntry: ",
+              )) &&
             payload.body.length <= 800
             ? [payload.title, payload.body]
             : [

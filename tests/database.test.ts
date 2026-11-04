@@ -16,8 +16,20 @@ async function setup() {
  create function auth.role() returns text language sql stable as $$ select nullif(current_setting('request.jwt.claim.role',true),'') $$;
  grant usage on schema public,auth to anon,authenticated,service_role;grant execute on all functions in schema auth to anon,authenticated,service_role;
  create publication supabase_realtime;`);
-  for (const file of (await readdir("supabase/migrations")).sort())
-    await db.exec(await readFile(`supabase/migrations/${file}`, "utf8"));
+  // PGlite has no pg_cron worker; emulate only the scheduler registration API.
+  // Production pg_cron installation and job state are verified against Supabase.
+  await db.exec(
+    "create schema cron; create function cron.schedule(text,text,text) returns bigint language sql as $$select 1::bigint$$;",
+  );
+  for (const file of (await readdir("supabase/migrations")).sort()) {
+    const sql = await readFile(`supabase/migrations/${file}`, "utf8");
+    await db.exec(
+      sql.replace(
+        "create extension if not exists pg_cron with schema pg_catalog;",
+        "",
+      ),
+    );
+  }
   await db.query(
     "insert into auth.users(id) values ($1),($2),($3)",
     Object.values(ids),
@@ -1205,15 +1217,11 @@ test("MT5 snapshots are service-only, private, ordered, replay-safe and rate-lim
       older.toISOString(),
     ]),
   );
-  for (let i = 1; i < 12; i++) {
-    const d = new Date(time.getTime() + i * 1000);
-    await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
-      JSON.stringify(body(d)),
-      String(i).padStart(64, "a"),
-      d.toISOString(),
-    ]);
-  }
-  const excess = new Date(time.getTime() + 12000);
+  await db.query(
+    "insert into mt5_bridge_receipts(exported_at,fingerprint) select $1::timestamptz - i * interval '1 millisecond', repeat('d',64) from generate_series(1,89) i",
+    [time.toISOString()],
+  );
+  const excess = new Date(time.getTime() + 1000);
   await assert.rejects(
     db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
       JSON.stringify(body(excess)),
@@ -1389,7 +1397,7 @@ test("automatic plans fail closed on wrong SL buffer and SELL without ask histor
   assert.equal(count.rows[0].total, 0);
   await db.close();
 });
-test("automatic engine observes M5-close stop and never wick-only invalidation", async () => {
+test("automatic SL ignores wicks until an inclusive M5 close", async () => {
   const db = await setup();
   await as(db, "admin");
   await db.query("select public.set_automatic_engine(true)");
@@ -1400,7 +1408,7 @@ test("automatic engine observes M5-close stop and never wick-only invalidation",
     first,
     JSON.stringify([f.plan]),
   ]);
-  const next = await f.put(1, 100, 96);
+  const next = await f.put(1, 95, 96.01);
   await db.query("select public.apply_automatic_engine($1,$2)", [next, "[]"]);
   await as(db, "admin");
   const still = await db.query<{ status: string }>(
@@ -1419,7 +1427,7 @@ test("automatic engine observes M5-close stop and never wick-only invalidation",
     initial,
     JSON.stringify([g.plan]),
   ]);
-  const invalid = await g.put(1, 95, 95);
+  const invalid = await g.put(1, 100, 96);
   await db2.query("select public.apply_automatic_engine($1,$2)", [
     invalid,
     "[]",
@@ -1522,7 +1530,7 @@ test("paused new publication preserves existing monitoring; data gaps suppress g
   assert.equal(row.rows[0].tp1_hit_at, null);
   await db2.close();
 });
-test("SELL automatic invalidation uses ask close above SL, never bid close", async () => {
+test("SELL SL uses inclusive ask M5 close, not quote touches", async () => {
   const db = await setup();
   await as(db, "admin");
   await db.query("select public.set_automatic_engine(true)");
@@ -1540,7 +1548,7 @@ test("SELL automatic invalidation uses ask close above SL, never bid close", asy
     time,
     JSON.stringify([sell]),
   ]);
-  const next = await f.put(1, 100, 105);
+  const next = await f.put(1, 100, 104);
   await db.query("select public.apply_automatic_engine($1,$2)", [next, "[]"]);
   await as(db, "admin");
   const row = await db.query<{ status: string; outcome: string | null }>(
@@ -1801,7 +1809,7 @@ test("50-pip alert uses entry inclusive for BUY and SELL, survives retrace and i
       JSON.stringify([f.plan]),
     ]);
     const tick = async (offset: number, exitPrice: number, close = 100) => {
-      const at = await f.put(offset, buy ? exitPrice : exitPrice - 0.2, close);
+      const at = await f.put(offset, buy ? exitPrice - 0.2 : exitPrice, close);
       await db.query("select public.apply_automatic_engine($1,'[]'::jsonb)", [
         at,
       ]);

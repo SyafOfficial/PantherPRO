@@ -18,7 +18,7 @@ It does not send data to Render, discover setups, deliver push, or operate while
 
 DOM is optional and off by default. Missing DOM is `null`; broker DOM is not global spot-gold depth. Tick volume does not establish aggressive buy/sell volume, which remains `null`. `real_volume` may be unavailable or zero on an OTC feed. Confirm broker terms before sending market data to a client-facing service.
 
-The 10-second snapshot timer is not a lossless tick stream. It cannot prove intrainterval TP touches or capture every movement above 50 pips. A later live bridge needs event streaming/sequence and replay rules before reliable notification monitoring.
+The v1.101 exporter defaults to a one-second timer and includes up to 5,000 recent broker ticks from an overlapping 30-second window. The uploader checks for changed files every 250 ms. The server replays new ticks in time order and deduplicates their cursor, preserving observed touches and retraces between uploads. Missing broker history, a disconnected terminal, overflow or a prolonged connection outage still prevents complete observation. This is not a broker execution feed.
 
 ## First real-terminal validation
 
@@ -32,6 +32,17 @@ Validate a local file with `npm run mt5:inspect -- path/to/vestrado-snapshot.jso
 
 ## EA v1.100 ask-side M5 extension
 
-The updated EA requests the latest completed M5 tick interval using MT5 `CopyTicksRange` and reconstructs an ask OHLC candle only from positive valid bid/ask ticks. It withholds empty/sparse history (first tick more than 60 seconds after the bar start or last tick more than 60 seconds before its end) and retries unavailable history. The result is `ask_m5`, cached for that completed bar. This supports SELL close-based invalidation without applying a guessed spread to historical bid candles. Tick count here describes returned tick records, not aggressive buy/sell volume.
+The updated EA requests the latest completed M5 tick interval using MT5 `CopyTicksRange` and reconstructs an ask OHLC candle only from positive valid bid/ask ticks. It withholds empty/sparse history (first tick more than 60 seconds after the bar start or last tick more than 60 seconds before its end) and retries unavailable history. The result is `ask_m5`, cached for that completed bar. This supports SELL setup validation without applying a guessed spread to historical bid candles. Tick count here describes returned tick records, not aggressive buy/sell volume.
 
-The original v0.10 exporter was compiled/tested by the owner; **v1.100 still needs compilation and runtime validation in MetaEditor**. Recompile, replace the attached EA, and verify uploader acceptance plus an uploaded snapshot with ask evidence before assuming SELL monitoring is available. No DLLs, order functions or account credentials were added.
+The original v0.10 exporter was compiled/tested by the owner; **v1.101 needs compilation and runtime validation in MetaEditor**. Recompile, replace the attached EA, and verify uploader acceptance plus an uploaded snapshot with ask evidence before assuming SELL monitoring is available. No DLLs, order functions or account credentials were added.
+
+## Updating the live bridge for quote-touch alerts
+
+Deploy the reviewed server/database changes before installing this EA: the old strict snapshot validator rejects `quote_ticks`.
+
+1. Replace the local EA source with this revision, compile in MetaEditor, and reattach it to XAUUSD.V. Confirm `ExportEverySeconds=1` (existing chart inputs may retain the old value).
+2. Restart the updated `Start-PantherBridge.ps1`, entering the existing bridge secret only in its hidden prompt.
+3. Verify snapshot acceptance and that the server receives `quote_ticks` at approximately one-second intervals. An old exporter still works but remains sampled and can miss brief touches.
+4. Enable app push permissions and target/signal preferences on an owner-approved test device, then measure observation-to-outbox-to-push-service times. Push-service acceptance does not prove handset display.
+
+The server treats either Bid or Ask reaching or crossing TP as an observed HIT, including equality. SL requires the completed exit-side M5 close: BUY at/below SL, SELL at/above SL. Wicks alone do not count. This is the owner-selected alert convention, not a broker fill claim. Existing BE arming and zone-return rules are retained, with either-side return touches and no M5 wait.

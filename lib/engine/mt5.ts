@@ -65,6 +65,20 @@ function barClose(frame: (typeof frames)[number], opened: number) {
     )[frame]
   );
 }
+const brokerQuote = z
+  .object({
+    bid: price,
+    ask: price,
+    last_tick_time_raw: rawTime,
+    last_tick_time_msc_raw: rawTime,
+  })
+  .strict()
+  .refine(
+    (q) =>
+      q.ask >= q.bid &&
+      Math.floor(q.last_tick_time_msc_raw / 1000) === q.last_tick_time_raw,
+    "Invalid tick or spread",
+  );
 export const mt5SnapshotSchema = z
   .object({
     schema: z.literal("panther.mt5.snapshot.v1"),
@@ -77,20 +91,8 @@ export const mt5SnapshotSchema = z
     server_time_raw: rawTime,
     digits: z.number().int().min(0).max(10),
     point: price,
-    quote: z
-      .object({
-        bid: price,
-        ask: price,
-        last_tick_time_raw: rawTime,
-        last_tick_time_msc_raw: rawTime,
-      })
-      .strict()
-      .refine(
-        (q) =>
-          q.ask >= q.bid &&
-          Math.floor(q.last_tick_time_msc_raw / 1000) === q.last_tick_time_raw,
-        "Invalid tick or spread",
-      ),
+    quote: brokerQuote,
+    quote_ticks: z.array(brokerQuote).max(5000).optional(),
     series: z.array(series).min(7).max(8),
     ask_m5: z.array(bar).max(100).optional(),
     order_book: z
@@ -130,6 +132,21 @@ export const mt5SnapshotSchema = z
       c.addIssue({
         code: "custom",
         message: "Point and digit precision disagree",
+      });
+    const ticks = s.quote_ticks ?? [];
+    if (
+      ticks.some(
+        (q, i) =>
+          q.last_tick_time_raw > s.server_time_raw ||
+          s.server_time_raw - q.last_tick_time_raw > 30 ||
+          q.last_tick_time_msc_raw > s.quote.last_tick_time_msc_raw ||
+          (i > 0 &&
+            q.last_tick_time_msc_raw < ticks[i - 1].last_tick_time_msc_raw),
+      )
+    )
+      c.addIssue({
+        code: "custom",
+        message: "Tick window must be recent and chronological",
       });
     const asks = s.ask_m5 ?? [];
     if (

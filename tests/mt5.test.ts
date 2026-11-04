@@ -80,3 +80,36 @@ test("snapshot rejects wrong symbol, duplicate frames, future bars and broken pr
   assert.throws(() => inspectMt5Snapshot(future, now));
   assert.throws(() => snapshotUtc("2026.02.30 00:00:00"));
 });
+
+test("tick windows reject stale, reversed, future and invalid spread evidence", () => {
+  const f = fixture();
+  const q = f.quote;
+  const withTicks = (ticks: unknown[]) => ({ ...f, quote_ticks: ticks });
+  assert.doesNotThrow(() => inspectMt5Snapshot(withTicks([q]), now));
+  for (const ticks of [
+    [{ ...q, ask: q.bid - 1 }],
+    [
+      {
+        ...q,
+        last_tick_time_raw: q.last_tick_time_raw - 31,
+        last_tick_time_msc_raw: q.last_tick_time_msc_raw - 31000,
+      },
+    ],
+    [
+      q,
+      {
+        ...q,
+        last_tick_time_raw: q.last_tick_time_raw - 1,
+        last_tick_time_msc_raw: q.last_tick_time_msc_raw - 1000,
+      },
+    ],
+    [
+      {
+        ...q,
+        last_tick_time_raw: q.last_tick_time_raw + 1,
+        last_tick_time_msc_raw: q.last_tick_time_msc_raw + 1000,
+      },
+    ],
+  ])
+    assert.throws(() => inspectMt5Snapshot(withTicks(ticks), now));
+});

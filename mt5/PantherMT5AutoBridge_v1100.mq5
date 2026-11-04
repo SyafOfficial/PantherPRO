@@ -1,9 +1,9 @@
 // Panther FX read-only MT5 exporter. No order placement or position changes.
 #property strict
-#property version "1.100"
+#property version "1.101"
 #property description "Exports XAUUSD.V market snapshots locally; does not trade or send account details."
 input string BridgeSymbol="XAUUSD.V";
-input int ExportEverySeconds=10;
+input int ExportEverySeconds=1;
 input int HistoryBars=300;
 input bool IncludeAvailableDOM=false;
 string OutputName="PantherFX\\vestrado-snapshot.json";
@@ -59,6 +59,17 @@ void ExportSnapshot(){
   data+="]}";
  }
  UpdateAskM5();
+ MqlTick recent[];
+ int count=CopyTicksRange(BridgeSymbol,recent,COPY_TICKS_ALL,(ulong)MathMax(0,tick.time_msc-30000),(ulong)tick.time_msc);
+ if(count<=0 || count>5000){Print("Panther: tick window unavailable or exceeds 5000 ticks; export withheld.");return;}
+ data+="],\"quote_ticks\":[";
+ int emitted=0;
+ for(int k=0;k<count;k++){
+  if(recent[k].bid<=0 || recent[k].ask<recent[k].bid)continue;
+  if(emitted>0)data+=",";
+  data+="{\"bid\":"+Num(recent[k].bid,digits)+",\"ask\":"+Num(recent[k].ask,digits)+",\"last_tick_time_raw\":"+Whole((long)recent[k].time)+",\"last_tick_time_msc_raw\":"+Whole(recent[k].time_msc)+"}";
+  emitted++;
+ }
  data+="],\"ask_m5\":[";
  if(AskReady){data+="{\"opened_at_server_raw\":"+Whole(CachedAskOpen)+",\"open\":"+Num(CachedAsk.open,digits)+",\"high\":"+Num(CachedAsk.high,digits)+",\"low\":"+Num(CachedAsk.low,digits)+",\"close\":"+Num(CachedAsk.close,digits)+",\"tick_volume\":"+Whole(CachedAsk.tick_volume)+",\"real_volume\":null,\"spread_points\":0}";}
  data+="],\"order_book\":";
@@ -81,7 +92,7 @@ void ExportSnapshot(){
  if(!FileMove(pending,FILE_COMMON,OutputName,FILE_COMMON|FILE_REWRITE))Print("Panther: snapshot replacement failed; error ",GetLastError());
 }
 int OnInit(){
- if(HistoryBars<30 || HistoryBars>1000 || ExportEverySeconds<5 || ExportEverySeconds>3600)return INIT_PARAMETERS_INCORRECT;
+ if(HistoryBars<30 || HistoryBars>1000 || ExportEverySeconds<1 || ExportEverySeconds>3600)return INIT_PARAMETERS_INCORRECT;
  if(!SymbolSelect(BridgeSymbol,true)){Print("Panther: broker symbol not found: ",BridgeSymbol);return INIT_FAILED;}
  FolderCreate("PantherFX",FILE_COMMON);
  if(IncludeAvailableDOM)domSubscribed=MarketBookAdd(BridgeSymbol);
@@ -91,3 +102,4 @@ int OnInit(){
 }
 void OnTimer(){ExportSnapshot();}
 void OnDeinit(const int reason){EventKillTimer();if(domSubscribed)MarketBookRelease(BridgeSymbol);}
+

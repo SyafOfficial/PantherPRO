@@ -139,12 +139,12 @@ async function engineCycle() {
   }
 }
 async function cycle() {
-  await rpc("prepare_push_deliveries", { batch_size: 20 });
+  await rpc("prepare_push_deliveries", { batch_size: 100 });
   // Bounded concurrent delivery prevents slow devices delaying everyone else.
   const deliveries = (await rpc("claim_push_deliveries", {
-    batch_size: 10,
+    batch_size: 50,
   })) as Delivery[];
-  await forEachConcurrent(deliveries, 5, async (item) => {
+  await forEachConcurrent(deliveries, 20, async (item) => {
     if (!safePushEndpoint(item.endpoint)) {
       await finish(item, "failed", "unsupported_endpoint");
       return;
@@ -172,11 +172,7 @@ async function cycle() {
           .eq("id", item.signal_id)
           .maybeSingle();
         if (error) throw new Error("Entry notification lookup failed");
-        if (
-          !data ||
-          (item.event_type === "signal.active" && data.status !== "active") ||
-          !data.published_at
-        ) {
+        if (!data || !data.published_at) {
           await finish(item, "skipped", "signal_not_active");
           return;
         }
@@ -231,14 +227,14 @@ async function main() {
     );
   await Promise.all([
     runWorkerLoop(cycle, {
-      idleMs: 1000,
+      idleMs: 250,
       busyMs: 0,
       once,
       stopped: () => stopping,
       onError,
     }),
     runWorkerLoop(engineCycle, {
-      idleMs: 2000,
+      idleMs: 500,
       once,
       stopped: () => stopping,
       onError,

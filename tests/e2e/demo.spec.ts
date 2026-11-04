@@ -236,9 +236,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
       .poll(async () => (await notifications())[0]?.title)
       .toBe(expectedTitle);
     if (eventType === "signal.break_even")
-      expect((await notifications())[0].body).toBe(
-        "Collect half and Set BE",
-      );
+      expect((await notifications())[0].body).toBe("Collect half and Set BE");
   }
 });
 
@@ -338,6 +336,9 @@ test("phone install guidance, method filters and macro education work without fa
     page.getByRole("heading", { name: "No signals in this view" }),
   ).toBeVisible();
   await page.goto("/?view=Economic%20Calendar");
+  await page
+    .getByText("News context & official releases", { exact: true })
+    .click();
   await page
     .getByText("Federal Reserve rate decision", { exact: true })
     .click();
