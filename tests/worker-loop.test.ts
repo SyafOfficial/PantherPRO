@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { forEachConcurrent, runWorkerLoop } from "../lib/worker-loop";
+import {
+  forEachConcurrent,
+  runWorkerLoop,
+  createTaskPool,
+} from "../lib/worker-loop";
 import { monitorAcceptedSnapshot } from "../lib/engine/monitor";
 import type { SupabaseClient } from "@supabase/supabase-js";
 test("slow background work does not hold delivery; each loop has at most one task in flight", async () => {
@@ -67,4 +71,56 @@ test("accepted quote monitoring can only update existing signals, with no public
       { export_time: "2026-11-04T05:00:00Z", plans: [] },
     ],
   ]);
+});
+test("a slow device does not block a new delivery when another slot is released", async () => {
+  let release!: () => void;
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const pool = createTaskPool(2, () => assert.fail("Unexpected task failure"));
+  const order: string[] = [];
+  pool.start(async () => {
+    order.push("slow");
+    await blocked;
+    order.push("slow-done");
+  });
+  pool.start(async () => {
+    order.push("first-fast");
+  });
+  assert.equal(pool.available, 0);
+  assert.throws(() => pool.start(async () => {}), /capacity/);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(pool.available, 1);
+  pool.start(async () => {
+    order.push("next-event");
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(order, ["slow", "first-fast", "next-event"]);
+  let drained = false;
+  const done = pool.drain().then(() => {
+    drained = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(drained, false);
+  release();
+  await done;
+  assert.equal(pool.available, 2);
+});
+test("failed sends release capacity for later events and are reported once", async () => {
+  let failures = 0;
+  const pool = createTaskPool(1, () => {
+    failures++;
+  });
+  pool.start(async () => {
+    throw new Error("Endpoint unavailable");
+  });
+  await pool.drain();
+  assert.equal(failures, 1);
+  assert.equal(pool.available, 1);
+  let sent = false;
+  pool.start(async () => {
+    sent = true;
+  });
+  await pool.drain();
+  assert.equal(sent, true);
 });

@@ -74,7 +74,7 @@ export function displaySnapshot(
     },
     bars: s.candles.slice(-100),
     exported_at: s.exported_at,
-    refresh_seconds: 10,
+    refresh_seconds: 2,
     chart_kind: "completed_broker_candles_and_observed_bid" as const,
   };
 }

@@ -1,4 +1,4 @@
-import { runWorkerLoop, forEachConcurrent } from "../lib/worker-loop";
+import { runWorkerLoop, createTaskPool } from "../lib/worker-loop";
 import { createCalendarDisplayRefresh } from "../lib/calendar-display-cache";
 import { ownerShadowFailure } from "../lib/engine/owner-service";
 import { createOwnerShadowCycle } from "../lib/engine/owner-service";
@@ -138,77 +138,88 @@ async function engineCycle() {
     );
   }
 }
+let deliveryFailures = 0;
+const deliveryPool = createTaskPool(20, () => {
+  deliveryFailures++;
+  console.error(
+    "Push task failed; its lease will recover. No credentials or endpoints logged.",
+  );
+});
+async function deliver(item: Delivery) {
+  if (!safePushEndpoint(item.endpoint)) {
+    await finish(item, "failed", "unsupported_endpoint");
+    return;
+  }
+  if (
+    !(await rpc("notification_allowed", {
+      event_id: item.outbox_id,
+      device_id: item.subscription_id,
+    }))
+  ) {
+    await finish(item, "skipped", "no_longer_eligible");
+    return;
+  }
+  try {
+    let signal: PushSignalDetails | null = null;
+    if (
+      ["signal.active", "signal.stop_hit"].includes(item.event_type) &&
+      item.signal_id
+    ) {
+      const { data, error } = await db
+        .from("signals")
+        .select(
+          "direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,break_even,status,published_at",
+        )
+        .eq("id", item.signal_id)
+        .maybeSingle();
+      if (error) throw new Error("Entry notification lookup failed");
+      if (!data || !data.published_at) {
+        await finish(item, "skipped", "signal_not_active");
+        return;
+      }
+      signal = data;
+      if (
+        !(await rpc("notification_allowed", {
+          event_id: item.outbox_id,
+          device_id: item.subscription_id,
+        }))
+      ) {
+        await finish(item, "skipped", "no_longer_eligible");
+        return;
+      }
+    }
+    await webpush.sendNotification(
+      {
+        endpoint: item.endpoint,
+        keys: { p256dh: item.p256dh, auth: item.auth },
+      },
+      JSON.stringify(notificationPayload(item, signal)),
+      {
+        TTL: 300,
+        urgency: item.event_type.startsWith("signal.") ? "high" : "normal",
+        timeout: 10000,
+      },
+    );
+    await finish(item, "delivered");
+    // A push-service acceptance is not proof that a physical device displayed it.
+    console.info(
+      JSON.stringify({ deliveryId: item.id, state: "push_service_accepted" }),
+    );
+  } catch (error) {
+    const failure = classifyPushFailure(error);
+    await finish(item, failure.state, failure.code);
+  }
+}
 async function cycle() {
   await rpc("prepare_push_deliveries", { batch_size: 100 });
-  // Bounded concurrent delivery prevents slow devices delaying everyone else.
-  const deliveries = (await rpc("claim_push_deliveries", {
-    batch_size: 50,
-  })) as Delivery[];
-  await forEachConcurrent(deliveries, 20, async (item) => {
-    if (!safePushEndpoint(item.endpoint)) {
-      await finish(item, "failed", "unsupported_endpoint");
-      return;
-    }
-    if (
-      !(await rpc("notification_allowed", {
-        event_id: item.outbox_id,
-        device_id: item.subscription_id,
-      }))
-    ) {
-      await finish(item, "skipped", "no_longer_eligible");
-      return;
-    }
-    try {
-      let signal: PushSignalDetails | null = null;
-      if (
-        ["signal.active", "signal.stop_hit"].includes(item.event_type) &&
-        item.signal_id
-      ) {
-        const { data, error } = await db
-          .from("signals")
-          .select(
-            "direction,entry,entry_low,entry_high,stop_loss,tp1,tp2,tp3,break_even,status,published_at",
-          )
-          .eq("id", item.signal_id)
-          .maybeSingle();
-        if (error) throw new Error("Entry notification lookup failed");
-        if (!data || !data.published_at) {
-          await finish(item, "skipped", "signal_not_active");
-          return;
-        }
-        signal = data;
-        if (
-          !(await rpc("notification_allowed", {
-            event_id: item.outbox_id,
-            device_id: item.subscription_id,
-          }))
-        ) {
-          await finish(item, "skipped", "no_longer_eligible");
-          return;
-        }
-      }
-      await webpush.sendNotification(
-        {
-          endpoint: item.endpoint,
-          keys: { p256dh: item.p256dh, auth: item.auth },
-        },
-        JSON.stringify(notificationPayload(item, signal)),
-        {
-          TTL: 300,
-          urgency: item.event_type.startsWith("signal.") ? "high" : "normal",
-          timeout: 10000,
-        },
-      );
-      await finish(item, "delivered");
-      // A push-service acceptance is not proof that a physical device displayed it.
-      console.info(
-        JSON.stringify({ deliveryId: item.id, state: "push_service_accepted" }),
-      );
-    } catch (error) {
-      const failure = classifyPushFailure(error);
-      await finish(item, failure.state, failure.code);
-    }
-  });
+  const available = deliveryPool.available;
+  const deliveries =
+    available > 0
+      ? ((await rpc("claim_push_deliveries", {
+          batch_size: available,
+        })) as Delivery[])
+      : [];
+  for (const item of deliveries) deliveryPool.start(() => deliver(item));
   await rpc("finalize_push_events");
   return deliveries.length;
 }
@@ -246,5 +257,9 @@ async function main() {
       onError,
     }),
   ]);
+  // Stop taking new leases first, then finish bounded in-flight sends before exit.
+  await deliveryPool.drain();
+  await rpc("finalize_push_events");
+  if (once && deliveryFailures) process.exitCode = 1;
 }
 void main();
