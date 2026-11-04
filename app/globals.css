@@ -2807,3 +2807,18 @@ footer p {
     grid-template-columns: 1fr;
   }
 }
+
+.setup-tags {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.setup-tags strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.signal-details .setup-reason {
+  margin: 16px 0;
+  line-height: 1.65;
+  color: #c2c7d1;
+}

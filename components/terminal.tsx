@@ -1076,23 +1076,25 @@ function SignalCard({
       </div>
       {expanded && (
         <div className="signal-details">
-          <h4>Signal reasoning</h4>
-          <p>
-            Strategy: {String(s.strategy ?? "Unclassified")} · setup:{" "}
-            {String(s.timeframe ?? "Not supplied")} · higher context:{" "}
-            {String(s.higher_timeframe ?? "Not supplied")}
+          <h4>Setup Insight</h4>
+          <div className="detail-grid setup-tags">
+            <span>
+              Strategy<strong>{String(s.strategy ?? "Unclassified")}</strong>
+            </span>
+            <span>
+              Setup<strong>{String(s.timeframe ?? "Not Supplied")}</strong>
+            </span>
+            <span>
+              Higher Timeframe
+              <strong>{String(s.higher_timeframe ?? "Not Supplied")}</strong>
+            </span>
+          </div>
+          <p className="setup-reason">
+            {String(s.reasoning ?? "")
+              .replace(/^Automatic [^:]+: /, "")
+              .split(/; entry remains inside | Tick activity ratio /)[0]
+              .replace(/^./, (letter) => letter.toUpperCase())}
           </p>
-          <p>{String(s.reasoning)}</p>
-          {!demo && (
-            <p>
-              Quote observation:{" "}
-              {String(s.reconciliation_state ?? "not_started").replaceAll(
-                "_",
-                " ",
-              )}
-              . Observed touches are not broker fills or verified performance.
-            </p>
-          )}
           <div className="detail-grid">
             <span>
               TP1 / TP2 / TP3{" "}
@@ -1100,19 +1102,15 @@ function SignalCard({
                 {demo
                   ? "Not evaluated"
                   : [s.tp1_hit_at, s.tp2_hit_at, s.tp3_hit_at]
-                      .map(
-                        (t, i) =>
-                          `TP${i + 1}: ${t ? "Observed" : "Not observed"}`,
-                      )
+                      .map((t, i) => `TP${i + 1}: ${t ? "Hit" : "Pending"}`)
                       .join(" · ")}
               </strong>
             </span>
             <span>
-              Break-even{" "}
-              <strong>{s.break_even ? "Recorded" : "Not recorded"}</strong>
+              Break Even <strong>{s.break_even ? "Hit" : "Pending"}</strong>
             </span>
             <span>
-              Observed favorable movement{" "}
+              Maximum Favorable Move{" "}
               <strong>
                 {s.max_favorable_movement == null
                   ? "Unavailable"
@@ -1121,7 +1119,9 @@ function SignalCard({
             </span>
             <span>
               Source{" "}
-              <strong>{demo ? "Simulated fixture" : String(s.source)}</strong>
+              <strong>
+                {demo ? "Simulated fixture" : String(s.source).toUpperCase()}
+              </strong>
             </span>
           </div>
         </div>

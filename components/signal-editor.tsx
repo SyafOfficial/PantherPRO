@@ -68,9 +68,10 @@ export default function SignalEditor({
           ))}
         </div>
         <label>
-          Signal reasoning
+          Setup Reason
           <textarea
             name="reasoning"
+            placeholder="Briefly describe the setup and confirmation."
             defaultValue={String(s.reasoning)}
             minLength={20}
             maxLength={2000}
