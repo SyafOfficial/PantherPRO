@@ -1000,7 +1000,7 @@ function SignalCard({
               {demo
                 ? "Simulated setup"
                 : s.engine_version
-                  ? "Automatic rules signal · observed feed"
+                  ? "Trading Setup"
                   : "Administrator-reviewed signal"}
             </p>
           </div>
@@ -1091,19 +1091,26 @@ function SignalCard({
             </span>
           </div>
           <div className="detail-grid">
-            <span>
-              TP1 / TP2 / TP3{" "}
-              <strong>
-                {demo
-                  ? "Not evaluated"
-                  : [s.tp1_hit_at, s.tp2_hit_at, s.tp3_hit_at]
-                      .map((t, i) => `TP${i + 1}: ${t ? "Hit" : "Pending"}`)
-                      .join(" · ")}
-              </strong>
-            </span>
-            <span>
-              Break Even <strong>{s.break_even ? "Hit" : "Pending"}</strong>
-            </span>
+            {[
+              ["TP1", s.tp1_hit_at],
+              ["TP2", s.tp2_hit_at],
+              ["TP3", s.tp3_hit_at],
+              ["SL", s.stop_observed_at],
+              ["BE", s.break_even],
+            ].map(([label, hit]) => (
+              <span key={String(label)}>
+                <strong>
+                  {String(label)}{" "}
+                  {demo
+                    ? "Not Evaluated"
+                    : hit
+                      ? "Hit"
+                      : s.status === "closed"
+                        ? "No Hit"
+                        : "Pending"}
+                </strong>
+              </span>
+            ))}
           </div>
         </div>
       )}
