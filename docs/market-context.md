@@ -27,3 +27,32 @@ The fixed RSS URLs still require live availability checks in the deployment
 environment. Local tests use controlled fixtures and simulated source failures;
 they do not establish that those upstream feeds currently respond. This change
 requires no database migration or new API secret.
+
+## Forex Factory weekly connection
+
+Set `FF_CALENDAR_SOURCE=weekly` on the web and existing push worker. Set
+`FF_CALENDAR_PROVIDER_ID` on the worker to the enabled calendar provider used
+for this public weekly export. No API key, scraper host or additional service
+is required. Render settings are the live configuration source; the Blueprint
+in this repository remains a template.
+
+The worker fetches the fixed weekly JSON endpoint at most once per hour per
+process and shares that fetch with its display-cache refresh. It imports USD
+schedule events, preserves supplied figures, excludes holidays from economic
+release alerts and keeps missing actuals null. Observation timestamps describe
+retrieval of the export; they do not assert when the publisher last changed an
+economic figure. References are bounded hashes of the source date/title identity;
+a source date/title change can represent a separate row because this export
+provides no persistent vendor event ID.
+
+Existing high-impact reminders are queued every 30 seconds when a successful
+source observation is available, using the existing scheduled-time deduplication.
+The free export is a schedule source, not a streaming economic-release service.
+Actuals may remain unavailable. Source/import failures keep the last successful
+cache and do not invent events or block trading signal delivery. Shared fetches
+back off for ten minutes after failure. The calendar still does not pause or
+publish trading signals automatically.
+
+Source attribution and the internal provider record describe the owner-selected
+free export; they are not a representation of an acquired redistribution licence.
+Before broad client distribution, review the source's applicable terms.

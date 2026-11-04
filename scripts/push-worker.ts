@@ -1,3 +1,4 @@
+import { calendarFailure } from "../lib/forex-factory";
 import { runWorkerLoop, createTaskPool } from "../lib/worker-loop";
 import { createCalendarDisplayRefresh } from "../lib/calendar-display-cache";
 import { ownerShadowFailure } from "../lib/engine/owner-service";
@@ -49,9 +50,13 @@ type Delivery = {
   calendar_event_id?: string | null;
 };
 const syncCalendar = createCalendarSync(db, {
-  url: process.env.FF_SCRAPER_API_URL,
+  url:
+    process.env.FF_CALENDAR_SOURCE === "weekly"
+      ? undefined
+      : process.env.FF_SCRAPER_API_URL,
   token: process.env.FF_SCRAPER_AUTH_TOKEN,
   providerId: process.env.FF_CALENDAR_PROVIDER_ID,
+  source: process.env.FF_CALENDAR_SOURCE === "weekly" ? "weekly" : "scraper",
 });
 async function rpc(name: string, params?: Record<string, unknown>) {
   const { data, error } = await db.rpc(name, params);
@@ -69,7 +74,10 @@ async function finish(item: Delivery, state: string, code?: string) {
     console.warn(JSON.stringify({ deliveryId: item.id, state: "lease_lost" }));
 }
 const refreshCalendarDisplay = createCalendarDisplayRefresh(db, {
-  url: process.env.FF_SCRAPER_API_URL,
+  url:
+    process.env.FF_CALENDAR_SOURCE === "weekly"
+      ? undefined
+      : process.env.FF_SCRAPER_API_URL,
   token: process.env.FF_SCRAPER_AUTH_TOKEN,
 });
 const ownerShadowCycle = createOwnerShadowCycle(db);
@@ -108,9 +116,13 @@ async function backgroundCycle() {
           imported: calendar.imported,
         }),
       );
-  } catch {
-    console.error(
-      "Calendar sync unavailable; existing push delivery continues.",
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        component: "calendar_sync",
+        state: "unavailable",
+        ...calendarFailure(error),
+      }),
     );
   }
 }

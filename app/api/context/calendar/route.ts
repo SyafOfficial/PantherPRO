@@ -13,7 +13,10 @@ export async function GET() {
     );
   const db = serviceDb();
   refresh ??= createCalendarDisplayRefresh(db, {
-    url: process.env.FF_SCRAPER_API_URL,
+    url:
+      process.env.FF_CALENDAR_SOURCE === "weekly"
+        ? undefined
+        : process.env.FF_SCRAPER_API_URL,
     token: process.env.FF_SCRAPER_AUTH_TOKEN,
   });
   const read = () =>

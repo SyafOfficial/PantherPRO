@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scraperCalendar, importScraperEvents } from "./forex-factory-scraper";
+import {
+  forexFactoryCalendar,
+  type ForexFactoryCalendar,
+} from "./forex-factory";
+import { weeklyCalendarEvents } from "./calendar-weekly";
 
 export function createCalendarSync(
   db: SupabaseClient,
@@ -7,27 +12,41 @@ export function createCalendarSync(
     url?: string;
     token?: string;
     providerId?: string;
+    source?: "weekly" | "scraper";
   },
   load = scraperCalendar,
+  loadWeekly: () => Promise<ForexFactoryCalendar> = forexFactoryCalendar,
 ) {
   let nextFetch = 0;
   let nextQueue = 0;
   let readyUntil = 0;
   return async (now = Date.now()) => {
-    if (!options.url || !options.providerId) return { configured: false };
+    const weekly = options.source === "weekly";
+    if ((!weekly && !options.url) || !options.providerId)
+      return { configured: false };
+    const refreshMs = weekly ? 3600000 : 300000;
     let imported = 0;
     if (now >= nextFetch) {
-      nextFetch = now + 300000;
+      nextFetch = now + refreshMs;
       readyUntil = 0;
-      const calendar = await load(options.url, options.token);
-      imported = await importScraperEvents(
-        db,
-        options.providerId,
-        calendar.events,
-      );
+      const calendar = weekly
+        ? await loadWeekly()
+        : await load(options.url!, options.token);
+      const events = weekly
+        ? weeklyCalendarEvents(calendar, now)
+        : (calendar as Awaited<ReturnType<typeof scraperCalendar>>).events;
+      imported = await importScraperEvents(db, options.providerId, events);
+      if (weekly) {
+        const { error } = await db.from("calendar_display_cache").upsert({
+          singleton: true,
+          payload: calendar,
+          fetched_at: calendar.fetched_at,
+        });
+        if (error) throw new Error("Calendar cache write failed");
+      }
       readyUntil = Math.min(
-        now + 300000,
-        ...calendar.events.map(
+        now + refreshMs,
+        ...events.map(
           (event) => Date.parse(event.source_updated_at) + 86400000,
         ),
       );
@@ -37,6 +56,10 @@ export function createCalendarSync(
       const { error } = await db.rpc("queue_upcoming_calendar_events");
       if (error) throw new Error("Calendar reminder queue unavailable");
     }
-    return { configured: true, imported };
+    return {
+      configured: true,
+      imported,
+      source: weekly ? "weekly" : "scraper",
+    };
   };
 }

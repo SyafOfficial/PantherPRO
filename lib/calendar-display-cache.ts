@@ -27,7 +27,7 @@ export function createCalendarDisplayRefresh(
       try {
         const payload = {
           ...(await load()),
-          refresh_seconds: options.url ? 300 : 900,
+          refresh_seconds: options.url ? 300 : 3600,
         };
         const { error } = await db
           .from("calendar_display_cache")

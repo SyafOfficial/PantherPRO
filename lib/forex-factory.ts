@@ -38,7 +38,10 @@ export function parseForexFactory(value: unknown): ForexFactoryEvent[] {
     const id = `${event_time}:${r.title}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    const figure = (v: string | null | undefined) => v?.trim() || null;
+    const figure = (v: string | null | undefined) =>
+      !v?.trim() || ["empty", "n/a", "-", "—"].includes(v.trim().toLowerCase())
+        ? null
+        : v.trim();
     events.push({
       id,
       name: r.title,
@@ -53,16 +56,20 @@ export function parseForexFactory(value: unknown): ForexFactoryEvent[] {
     throw new Error("No valid USD calendar records");
   return events.sort((a, b) => a.event_time.localeCompare(b.event_time));
 }
-export async function forexFactoryCalendar(
+async function fetchWeeklyCalendar(
   fetcher: typeof fetch = fetch,
   now = Date.now(),
 ) {
   const response = await fetcher(FOREX_FACTORY_FEED, {
     redirect: "error",
     signal: AbortSignal.timeout(15000),
-    next: { revalidate: CALENDAR_REFRESH_SECONDS },
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "PantherPRO-Calendar/1.0",
+    },
   });
-  if (!response.ok) throw new Error("Calendar source unavailable");
+  if (!response.ok) throw new Error(`Calendar source HTTP ${response.status}`);
   const limit = 1048576;
   if (Number(response.headers.get("content-length") ?? 0) > limit)
     throw new Error("Calendar too large");
@@ -81,15 +88,68 @@ export async function forexFactoryCalendar(
   } finally {
     await reader.cancel().catch(() => {});
   }
+  const events = parseForexFactory(
+    JSON.parse(Buffer.concat(chunks).toString("utf8")),
+  );
+  if (
+    events.length &&
+    !events.some(
+      (event) => Math.abs(Date.parse(event.event_time) - now) <= 8 * 86400000,
+    )
+  )
+    throw new Error("Calendar week is stale");
   return {
     source_name: "Forex Factory",
     source_url: FOREX_FACTORY_PAGE,
     fetched_at: new Date(now).toISOString(),
     refresh_seconds: CALENDAR_REFRESH_SECONDS,
-    events: parseForexFactory(
-      JSON.parse(Buffer.concat(chunks).toString("utf8")),
-    ),
+    events,
   };
+}
+let cached: Awaited<ReturnType<typeof fetchWeeklyCalendar>> | null = null;
+let pending: ReturnType<typeof fetchWeeklyCalendar> | null = null;
+let retryAt = 0;
+let failure: Error | null = null;
+/** Shared hourly fetch per process, including worker display and ingestion. */
+export function forexFactoryCalendar(
+  fetcher: typeof fetch = fetch,
+  now = Date.now(),
+) {
+  // Explicit fetchers remain isolated for deterministic parser/transport tests.
+  if (fetcher !== fetch) return fetchWeeklyCalendar(fetcher, now);
+  if (
+    cached &&
+    now - Date.parse(cached.fetched_at) < CALENDAR_REFRESH_SECONDS * 1000
+  )
+    return Promise.resolve(cached);
+  if (pending) return pending;
+  if (now < retryAt && failure) return Promise.reject(failure);
+  pending = fetchWeeklyCalendar(fetcher, now)
+    .then((value) => {
+      cached = value;
+      failure = null;
+      retryAt = 0;
+      return value;
+    })
+    .catch((error: unknown) => {
+      failure =
+        error instanceof Error
+          ? error
+          : new Error("Calendar source unavailable");
+      retryAt = now + 10 * 60000;
+      throw failure;
+    })
+    .finally(() => {
+      pending = null;
+    });
+  return pending;
+}
+export function calendarFailure(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  const status = /^Calendar source HTTP (\d{3})$/.exec(message);
+  return status
+    ? { reason: "upstream_http", status: Number(status[1]) }
+    : { reason: "source_or_import_unavailable" };
 }
 export type ForexFactoryCalendar = Awaited<
   ReturnType<typeof forexFactoryCalendar>
