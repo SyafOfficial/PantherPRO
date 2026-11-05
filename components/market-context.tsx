@@ -118,7 +118,7 @@ export default function MarketContextPanel({
         <div className="section-title">
           <h2>XAUUSD · Market context</h2>
           <span className="outline-tag">
-            {data ? (fresh ? "MT5 SOURCE" : "STALE SOURCE") : "WAITING FOR MT5"}
+            {data ? (fresh ? "LIVE MARKET" : "STALE DATA") : "CONNECTING"}
           </span>
         </div>
         <label>
@@ -133,18 +133,13 @@ export default function MarketContextPanel({
             ))}
           </select>
         </label>
-        <p>
-          Calculated from received Vestrado candles. Context is not an entry
-          signal or prediction.
-        </p>
+        <p>Market structure for your selected timeframe.</p>
         {data ? (
           <>
             <MT5Chart data={data} fresh={fresh} />
           </>
         ) : (
-          <p>
-            Waiting for MT5 candle history. No substitute analysis is generated.
-          </p>
+          <p>Market history is currently unavailable.</p>
         )}
       </section>
       <div className="three-grid market-analysis-grid">
@@ -198,14 +193,14 @@ export default function MarketContextPanel({
                 EMA20 {fmt(context.ema20)} · EMA50 {fmt(context.ema50)}
               </p>
               <small>
-                Based on {context.bars} completed source candles.{" "}
+                Based on {context.bars} completed candles.{" "}
                 {context.status === "stale" || !fresh
                   ? "Source is stale; these are historical readings."
                   : ""}
               </small>
             </>
           ) : (
-            <p>At least 50 completed source candles are required.</p>
+            <p>At least 50 completed candles are required.</p>
           )}
         </section>
         <section className="panel content-panel">
@@ -236,7 +231,7 @@ export default function MarketContextPanel({
               </small>
             </>
           ) : (
-            <p>Insufficient source history for confirmed levels.</p>
+            <p>Insufficient market history for confirmed levels.</p>
           )}
         </section>
       </div>

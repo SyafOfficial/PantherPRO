@@ -29,7 +29,7 @@ export default function MT5Chart({
       <svg
         viewBox="0 0 760 300"
         role="img"
-        aria-label={`Actual Vestrado XAUUSD.V ${data.timeframe} completed candlestick chart. Broker candle times. ${fresh ? "Latest received bid." : "Last received bid is stale."}`}
+        aria-label={`XAUUSD ${data.timeframe} completed candlestick chart. Chart time. ${fresh ? "Latest received bid." : "Last received bid is stale."}`}
       >
         {Array.from({ length: 5 }, (_, i) => {
           const value = top - ((top - bottom) * i) / 4;
@@ -109,8 +109,7 @@ export default function MT5Chart({
           ),
         )}
         <text x="12" y="290" fill="#8a8f9b" fontSize="10">
-          Broker candle time · completed bars ·{" "}
-          {fresh ? "observed bid" : "stale bid"} · MT5 snapshots ~10s
+          Chart Time · Completed Candles · {fresh ? "Live Bid" : "Stale Bid"}
         </text>
       </svg>
     </div>

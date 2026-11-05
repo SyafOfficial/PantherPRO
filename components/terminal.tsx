@@ -328,8 +328,7 @@ export default function Terminal({
         <div className="sidebar-bottom">
           <div className="system-state">
             <span className="dot muted-dot" />{" "}
-            {demo ? "Demo environment" : "Database connected"}
-            <span>v0.1</span>
+            {demo ? "Demo Workspace" : "Member Workspace"}
           </div>
           <Link href="/login" className="account">
             <span className="avatar">{user?.name?.slice(0, 1) || "G"}</span>
@@ -402,30 +401,20 @@ export default function Terminal({
           )}
         </header>
         <main>
-          <div className="demo-banner">
-            <ShieldCheck size={16} />
-            <span>
-              {demo ? (
-                <>
-                  <strong>Demo workspace</strong>
-                  <span className="banner-detail">
-                    {" "}
-                    — All prices, chart points and signals below are simulated.
-                    No live feed connected.
-                  </span>
-                </>
-              ) : (
-                <>
-                  <strong>Member workspace</strong> — Market updates show source
-                  timestamps. Automatic signals follow configured rules; no
-                  guaranteed outcomes.
-                </>
-              )}
-            </span>
-            <span className="outline-tag">
-              {demo ? "SIMULATED DATA" : mt5 ? "MT5 FEED" : "CONNECTED"}
-            </span>
-          </div>
+          {demo && (
+            <div className="demo-banner">
+              <ShieldCheck size={16} />
+              <span>
+                <strong>Demo workspace</strong>
+                <span className="banner-detail">
+                  {" "}
+                  — All prices, chart points and signals below are simulated. No
+                  live feed connected.
+                </span>
+              </span>
+              <span className="outline-tag">SIMULATED DATA</span>
+            </div>
+          )}
           <div className="page-heading">
             <div>
               <div className="eyebrow">THE PANTHER PERSPECTIVE</div>
@@ -469,8 +458,10 @@ export default function Terminal({
                     demo
                       ? "Illustrative price · not live"
                       : quote
-                        ? `${fresh ? "Bid" : "Stale bid"} · ${quote.source_name}`
-                        : "Waiting for MT5 feed"
+                        ? fresh
+                          ? "Live Bid"
+                          : "Stale Bid"
+                        : "Connecting to Market"
                   }
                   icon={<Activity size={17} />}
                   badge={
@@ -478,7 +469,7 @@ export default function Terminal({
                       ? "DEMO"
                       : quote
                         ? fresh
-                          ? "SOURCE QUOTE"
+                          ? "LIVE"
                           : "STALE"
                         : undefined
                   }
@@ -614,31 +605,27 @@ export default function Terminal({
                       <ChartNoAxesCombined />
                       <h3>
                         {quote
-                          ? "Broker chart unavailable"
+                          ? "Chart Unavailable"
                           : mt5Error
-                            ? "MT5 feed unavailable"
-                            : "Loading MT5 feed"}
+                            ? "Market Unavailable"
+                            : "Connecting to Market"}
                       </h3>
                       <p>
                         {quote
-                          ? `Source bid ${quote.bid} / ask ${quote.ask}. No candlestick history is available.`
-                          : "Waiting for actual broker prices and completed candles. The display retries automatically."}
+                          ? `Bid ${quote.bid} / Ask ${quote.ask}. Chart history is unavailable.`
+                          : "Your market view will appear when data is available."}
                       </p>
                     </div>
                   )}
                   <div className="chart-footer">
                     <span>
                       <span className="dot gold-dot" />
-                      {demo
-                        ? "PANTHER FX · DEMO CHART"
-                        : quote
-                          ? quote.source_name.toUpperCase()
-                          : "MT5 FEED PENDING"}
+                      {demo ? "PANTHER FX · DEMO CHART" : "XAUUSD · GOLD"}
                     </span>
                     <span>
                       {mt5
-                        ? `${mt5Error ? "Connection interrupted · " : ""}Bid ${mt5.quote.bid.toFixed(2)} / Ask ${mt5.quote.ask.toFixed(2)} · snapshots ~10s`
-                        : "No exchange connection"}
+                        ? `${fresh && !mt5Error ? "" : "Stale · "}Bid ${mt5.quote.bid.toFixed(2)} / Ask ${mt5.quote.ask.toFixed(2)}`
+                        : "Awaiting Market Data"}
                     </span>
                   </div>
                 </section>
