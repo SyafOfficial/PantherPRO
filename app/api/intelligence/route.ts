@@ -1,8 +1,9 @@
+import { clientAccessAllowed } from "@/lib/clients/access";
 import { identity } from "@/lib/supabase";
 import { loadIntelligence } from "@/lib/intelligence/service";
 export const dynamic = "force-dynamic";
 export async function GET() {
-  if (!(await identity()))
+  if (!(await identity()) || !(await clientAccessAllowed()))
     return Response.json(
       { error: "Sign in required" },
       { status: 401, headers: { "Cache-Control": "private, no-store" } },

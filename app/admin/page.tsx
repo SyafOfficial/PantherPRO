@@ -107,6 +107,9 @@ export default async function Admin({
       <Link href="/admin/performance" className="secondary-button">
         Performance Statistics →
       </Link>
+      <Link href="/admin/clients" className="secondary-button">
+        Client Directory &amp; Access →
+      </Link>
       <h1>Command center.</h1>
       <p>Review first. Publish deliberately. Every change leaves a record.</p>
       {params.message && (

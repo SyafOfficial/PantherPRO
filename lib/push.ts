@@ -110,17 +110,29 @@ export function notificationPayload(
       body = "Setup closed. Do not enter.\n" + body;
     }
   }
+  if (delivery.event_type === "client.approved") {
+    title = "Client approved";
+    body =
+      "A client met the verified funding requirements. Open your client directory.";
+  }
+  if (delivery.event_type === "client.revoked") {
+    title = "Client access revoked";
+    body =
+      "A client no longer meets the access requirements. Open your client directory to review.";
+  }
   return {
     id: delivery.id,
     eventId: delivery.outbox_id,
     eventType: delivery.event_type,
     title,
     body,
-    url: delivery.signal_id
-      ? `/?view=Signals&signal=${encodeURIComponent(delivery.signal_id)}`
-      : delivery.event_type.startsWith("news.")
-        ? `/?view=Economic%20Calendar${delivery.calendar_event_id ? `&event=${encodeURIComponent(delivery.calendar_event_id)}` : ""}`
-        : "/account#announcements",
+    url: delivery.event_type.startsWith("client.")
+      ? "/admin/clients"
+      : delivery.signal_id
+        ? `/?view=Signals&signal=${encodeURIComponent(delivery.signal_id)}`
+        : delivery.event_type.startsWith("news.")
+          ? `/?view=Economic%20Calendar${delivery.calendar_event_id ? `&event=${encodeURIComponent(delivery.calendar_event_id)}` : ""}`
+          : "/account#announcements",
     tag: `panther-${delivery.id}`,
   };
 }

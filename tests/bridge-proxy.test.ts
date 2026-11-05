@@ -6,6 +6,8 @@ test("HMAC bridge bypasses session proxy while account and admin requests retain
   const matches = (url: string) =>
     unstable_doesMiddlewareMatch({ config, nextConfig: {}, url });
   assert.equal(matches("/api/bridge/mt5"), false);
+  assert.equal(matches("/api/bridge/clients"), false);
+  assert.equal(matches("/api/bridge/clients/"), false);
   assert.equal(matches("/api/bridge/mt5?test=1"), false);
   assert.equal(matches("/api/bridge/mt5/"), false);
   for (const path of [
@@ -14,6 +16,8 @@ test("HMAC bridge bypasses session proxy while account and admin requests retain
     "/api/push/subscriptions",
     "/api/market/mt5",
     "/api/bridge/mt5-other",
+    "/api/bridge/clients-other",
+    "/api/bridge/clients/admin",
     "/api/bridge/mt5/admin",
   ])
     assert.equal(matches(path), true, path);

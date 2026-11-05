@@ -1,3 +1,4 @@
+import { clientAccessAllowed } from "@/lib/clients/access";
 import { isConfigured, supabase } from "@/lib/supabase";
 import { serviceDb } from "@/lib/service-db";
 import {
@@ -23,6 +24,11 @@ export async function GET(request: Request) {
     return Response.json(
       { error: "Sign in required" },
       { status: 401, headers },
+    );
+  if (!(await clientAccessAllowed()))
+    return Response.json(
+      { error: "Membership verification required" },
+      { status: 403, headers },
     );
   const frame = new URL(request.url).searchParams.get("timeframe") ?? "H1";
   if (!DISPLAY_FRAMES.includes(frame as (typeof DISPLAY_FRAMES)[number]))

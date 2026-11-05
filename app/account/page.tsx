@@ -58,6 +58,18 @@ export default async function Account() {
           Change password
         </Link>
       </div>
+      {user && (
+        <Link
+          href={user.role === "admin" ? "/admin/clients" : "/onboarding"}
+          className="secondary-button"
+          style={{ marginBottom: 20 }}
+        >
+          {user.role === "admin"
+            ? "Client Directory & Access"
+            : "Your membership"}{" "}
+          →
+        </Link>
+      )}
       <NotificationSettings
         initial={preferences}
         enabled={Boolean(user && isConfigured())}

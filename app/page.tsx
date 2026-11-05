@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { clientAccessAllowed } from "@/lib/clients/access";
 import { productionIssues } from "@/lib/deployment";
 import Terminal from "@/components/terminal";
 import { loadIntelligence } from "@/lib/intelligence/service";
@@ -31,6 +33,7 @@ export default async function Page({
       </main>
     );
   const user = await identity();
+  if (user && !(await clientAccessAllowed())) redirect("/onboarding");
   const intelligencePromise = loadIntelligence();
   let signals: Record<string, unknown>[] = [];
   let dailySummary: DailySignalSummary | null = null;

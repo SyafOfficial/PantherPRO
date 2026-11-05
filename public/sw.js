@@ -129,7 +129,7 @@ self.addEventListener("push", (event) => {
       );
       if (
         url.origin !== self.location.origin ||
-        !["/", "/account"].includes(url.pathname)
+        !["/", "/account", "/admin/clients"].includes(url.pathname)
       )
         return;
       if (!(await firstDelivery(payload.id))) return;
@@ -207,7 +207,7 @@ self.addEventListener("notificationclick", (event) => {
       );
       if (
         url.origin !== self.location.origin ||
-        !["/", "/account"].includes(url.pathname)
+        !["/", "/account", "/admin/clients"].includes(url.pathname)
       )
         return;
       const windows = await self.clients.matchAll({

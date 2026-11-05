@@ -2423,3 +2423,155 @@ test("client recent desk curates existing TP history once and retains all future
     await db.close();
   }
 });
+
+test("client onboarding protects credentials, enforces server-side access and queues admin-only decisions atomically", async () => {
+  const db = await setup();
+  try {
+    await as(db, "service_role");
+    const details = {
+      full_name: "Client One",
+      email: "client@example.test",
+      phone: "+60123456789",
+      client_id: "IB-1",
+      mt5_login: "12345",
+      server: "Vestrado-Live",
+    };
+    await db.query("select public.submit_client_application($1,$2,$3)", [
+      ids.public,
+      details,
+      "v1.encrypted.test.credential",
+    ]);
+    await assert.rejects(
+      db.query("select public.submit_client_application($1,$2,$3)", [
+        ids.member,
+        { ...details, server: "vestrado-live" },
+        "v1.encrypted.test.credential",
+      ]),
+      /duplicate key/,
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select * from public.client_applications")).rows.length,
+      1,
+    );
+    await assert.rejects(
+      db.query("select * from public.client_credentials"),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("update public.client_applications set status='approved'"),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("select public.submit_client_application($1,$2,$3)", [
+        ids.member,
+        details,
+        "v1.encrypted.test.credential",
+      ]),
+      /permission denied/,
+    );
+    await as(db, "member");
+    assert.equal(
+      (await db.query("select * from public.client_applications")).rows.length,
+      0,
+    );
+    await as(db, "admin");
+    await assert.rejects(
+      db.query("select public.set_client_gate(true)"),
+      /Verify a live client/,
+    );
+    await as(db, "service_role");
+    const a = (
+      await db.query<{ revision: string }>(
+        "select revision from public.client_applications where user_id=$1",
+        [ids.public],
+      )
+    ).rows[0];
+    const result = {
+      status: "approved",
+      reason: "eligible",
+      funded_at: new Date().toISOString(),
+      last_trade_at: null,
+      balance: 300,
+      equity: 300,
+      credit: 0,
+      deposits: 300,
+      withdrawals: 0,
+    };
+    const stamp = new Date().toISOString();
+    await db.query("select public.record_client_assessment($1,$2,$3,$4)", [
+      ids.public,
+      a.revision,
+      stamp,
+      result,
+    ]);
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.record_client_assessment($1,$2,$3,$4) as ok",
+          [ids.public, a.revision, stamp, result],
+        )
+      ).rows[0].ok,
+      false,
+    );
+    const notifications = await db.query<{ recipient_id: string }>(
+      "select recipient_id from public.notification_outbox where event_type='client.approved'",
+    );
+    assert.deepEqual(
+      notifications.rows.map((r) => r.recipient_id),
+      [ids.admin],
+    );
+    await as(db, "admin");
+    const signal = await draft(db);
+    await db.query("select public.transition_signal($1,'pending')", [signal]);
+    await db.query("select public.transition_signal($1,'active')", [signal]);
+    await db.query("select public.set_client_gate(true)");
+    await as(db, "member");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      0,
+    );
+    await assert.rejects(
+      db.query("select public.get_member_signal_summary()"),
+      /Membership verification/,
+    );
+    await assert.rejects(
+      db.query("select public.get_market_snapshot_before_client_gate()"),
+      /permission denied/,
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      1,
+    );
+    await db.query("select public.get_member_signal_summary()");
+    await as(db, "service_role");
+    await db.query(
+      "select public.record_client_assessment($1,$2,now()+interval '1 second',$3)",
+      [
+        ids.public,
+        a.revision,
+        { ...result, status: "revoked", reason: "inactive_7_days" },
+      ],
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      0,
+    );
+    assert.equal(
+      (await db.query("select * from public.client_access_events")).rows.length,
+      0,
+    );
+    await as(db, "service_role");
+    await assert.rejects(
+      db.query(
+        "select public.record_client_assessment($1,$2,now()+interval '2 seconds',$3)",
+        [ids.public, a.revision, result],
+      ),
+      /Invalid assessment/,
+    );
+  } finally {
+    await db.close();
+  }
+});

@@ -2991,3 +2991,85 @@ footer p {
     visibility: visible;
   }
 }
+
+/* Client registration and private administrator directory. */
+.client-onboarding {
+  max-width: 640px;
+}
+.client-onboarding .brand {
+  margin-bottom: 32px;
+}
+.client-form-grid,
+.client-stat-grid,
+.client-detail-grid {
+  display: grid;
+  gap: 20px;
+}
+.client-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.client-stat-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 24px 0;
+}
+.client-detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 24px 0;
+}
+.client-detail-grid small,
+.client-detail-grid strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.client-detail-grid small {
+  margin-bottom: 8px;
+}
+.client-detail-grid strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.client-terms {
+  padding: 20px;
+  border: 1px solid var(--border, #292c36);
+  border-radius: 12px;
+  background: rgba(217, 182, 111, 0.035);
+}
+.client-terms p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.client-consent {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.client-consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.client-status {
+  padding: 24px 0;
+}
+.client-directory {
+  display: grid;
+  gap: 20px;
+  margin: 24px 0;
+}
+@media (max-width: 600px) {
+  .client-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .client-detail-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .client-stat-grid {
+    gap: 8px;
+  }
+  .client-stat-grid .content-panel {
+    padding: 16px;
+  }
+}

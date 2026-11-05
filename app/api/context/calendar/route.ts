@@ -1,3 +1,4 @@
+import { clientAccessAllowed } from "@/lib/clients/access";
 import { after } from "next/server";
 import { identity } from "@/lib/supabase";
 import { serviceDb } from "@/lib/service-db";
@@ -6,7 +7,7 @@ export const dynamic = "force-dynamic";
 let refresh: ReturnType<typeof createCalendarDisplayRefresh> | null = null;
 export async function GET() {
   const headers = { "Cache-Control": "private, no-store", Vary: "Cookie" };
-  if (!(await identity()))
+  if (!(await identity()) || !(await clientAccessAllowed()))
     return Response.json(
       { error: "Sign in required" },
       { status: 401, headers },

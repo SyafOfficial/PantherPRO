@@ -1,0 +1,10 @@
+{
+  "broker_validated": false,
+  "servers": {
+    "replace-with-exact-vestrado-server": {
+      "deposit": "REPLACE_WITH_VERIFIED_CASH_DEPOSIT_PATTERN",
+      "withdrawal": "REPLACE_WITH_VERIFIED_WITHDRAWAL_PATTERN",
+      "bonus": "REPLACE_WITH_VERIFIED_BONUS_PATTERN"
+    }
+  }
+}
