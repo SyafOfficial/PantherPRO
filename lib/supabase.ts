@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 export function isConfigured() {
@@ -32,7 +33,7 @@ export async function supabase() {
     },
   );
 }
-export async function identity() {
+export const identity = cache(async function identity() {
   if (!isConfigured()) return null;
   const db = await supabase();
   const {
@@ -52,4 +53,4 @@ export async function identity() {
     role: data?.role ?? "public",
     name: data?.display_name ?? "Member",
   };
-}
+});

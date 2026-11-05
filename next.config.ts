@@ -4,6 +4,7 @@ const config: NextConfig = {
   // output can be empty in the managed build environment.
   experimental: { useTypeScriptCli: false },
   poweredByHeader: false,
+  deploymentId: process.env.RENDER_GIT_COMMIT,
   allowedDevOrigins: ["127.0.0.1"],
   async headers() {
     return [

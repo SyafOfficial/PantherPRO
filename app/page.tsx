@@ -19,6 +19,7 @@ export default async function Page() {
       </main>
     );
   const user = await identity();
+  const intelligencePromise = loadIntelligence();
   let signals: Record<string, unknown>[] = [];
   let dailySummary: DailySignalSummary | null = null;
   let dataError = false;
@@ -50,7 +51,7 @@ export default async function Page() {
     if (marketResult.data && !marketResult.error)
       market = marketResult.data as MarketSnapshot;
   }
-  const intelligence = await loadIntelligence();
+  const intelligence = await intelligencePromise;
   return (
     <Terminal
       user={user}

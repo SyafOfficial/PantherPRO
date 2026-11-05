@@ -5,13 +5,13 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
       <section className="panel auth-card">
         <div className="eyebrow">PANTHER FX</div>
         <h1>Connection interrupted.</h1>
-        <p>
-          The terminal could not load. Check your connection and Supabase
-          configuration, then retry. No market data has been substituted.
-        </p>
+        <p>Your workspace could not load. Please retry or reload the app.</p>
         <button className="primary-button" onClick={reset}>
           Try again
         </button>
+        <a className="secondary-button" href="">
+          Reload App
+        </a>
       </section>
     </main>
   );

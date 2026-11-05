@@ -22,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" style={{ background: "#090a0f", colorScheme: "dark" }}>
+      <body style={{ background: "#090a0f", margin: 0 }}>
         <AppLaunch>{children}</AppLaunch>
       </body>
     </html>

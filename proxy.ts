@@ -34,6 +34,7 @@ export async function proxy(request: NextRequest) {
     )
   )
     return secure(response);
+  if (request.nextUrl.pathname === "/api/health") return secure(response);
   const db = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
@@ -58,5 +59,7 @@ export async function proxy(request: NextRequest) {
   return secure(response);
 }
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|sw.js).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|icon(?:-192\\.png|-512\\.png|-maskable\\.svg|\\.svg)|manifest.webmanifest|sw.js).*)",
+  ],
 };

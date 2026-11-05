@@ -489,3 +489,23 @@ test("performance route requires administrator sign in even in demo mode", async
     page.getByRole("heading", { name: "Performance Statistics" }),
   ).toHaveCount(0);
 });
+
+test("launch content becomes visible even when JavaScript is unavailable", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
+  await page.goto("/guide");
+  await expect(page.locator(".app-launch-screen")).toBeHidden({
+    timeout: 3000,
+  });
+  await expect(
+    page.getByRole("heading", { name: "Panther FX Guide", exact: true }),
+  ).toBeVisible();
+  expect(
+    await page
+      .locator("html")
+      .evaluate((e) => getComputedStyle(e).backgroundColor),
+  ).toBe("rgb(9, 10, 15)");
+  await context.close();
+});

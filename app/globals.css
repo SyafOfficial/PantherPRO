@@ -2776,7 +2776,7 @@ footer p {
   overflow-wrap: anywhere;
 }
 
-/* App launch: show the brand for 1.2s, then cross-fade for 0.6s. */
+/* App launch: show the brand for 0.5s, then cross-fade for 0.3s. */
 .app-launch-screen,
 .route-loading-screen {
   display: grid;
@@ -2789,10 +2789,10 @@ footer p {
   position: fixed;
   inset: 0;
   z-index: 10000;
-  animation: launch-dismiss 0.6s ease-in-out 1.2s both;
+  animation: launch-dismiss 0.3s ease-in-out 0.5s both;
 }
 .is-launching > .app-launch-content {
-  animation: launch-reveal 0.6s ease-in-out 1.2s both;
+  animation: launch-reveal 0.3s ease-in-out 0.5s both;
 }
 .panther-loader {
   display: flex;
@@ -2880,10 +2880,10 @@ footer p {
     animation: none;
   }
   .app-launch-screen {
-    animation: launch-dismiss 1ms linear 1.2s both;
+    animation: launch-dismiss 1ms linear 0.5s both;
   }
   .is-launching > .app-launch-content {
-    animation: launch-reveal 1ms linear 1.2s both;
+    animation: launch-reveal 1ms linear 0.5s both;
   }
 }
 
@@ -2963,5 +2963,31 @@ footer p {
   }
   .performance-stat strong {
     font-size: 23px;
+  }
+}
+
+.route-loading-screen {
+  position: relative;
+}
+.loading-recovery {
+  position: absolute;
+  bottom: 8svh;
+  left: 20px;
+  right: 20px;
+  text-align: center;
+  color: #a1a3b0;
+  animation: loading-recovery 1ms 8s both;
+}
+.loading-recovery a {
+  display: inline-block;
+  margin-top: 12px;
+  color: #d9b66f;
+}
+@keyframes loading-recovery {
+  from {
+    visibility: hidden;
+  }
+  to {
+    visibility: visible;
   }
 }

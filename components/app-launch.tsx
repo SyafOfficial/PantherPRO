@@ -6,7 +6,7 @@ export default function AppLaunch({ children }: { children: ReactNode }) {
   const [launching, setLaunching] = useState(true);
   useEffect(() => {
     // Visual dwell only: data, authentication and notification work start normally.
-    const timer = window.setTimeout(() => setLaunching(false), 1800);
+    const timer = window.setTimeout(() => setLaunching(false), 800);
     return () => window.clearTimeout(timer);
   }, []);
   return (
