@@ -2592,7 +2592,7 @@ test("setup registration gate preserves the original team but blocks newer clien
       ).rows[0].ok,
       true,
     );
-    await as(db, "service_role");
+    await db.exec("reset role");
     // A client registered after onboarding launched, but before this fix.
     await db.query(
       "update public.profiles set created_at=(select setup_started_at+interval '1 second' from public.client_access_policy) where id=$1",
