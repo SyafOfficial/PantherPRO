@@ -12,7 +12,42 @@ import {
 } from "@/lib/engine/mt5";
 import { serviceConfigured, serviceDb } from "@/lib/service-db";
 export const runtime = "nodejs";
+type BridgeStage =
+  | "headers"
+  | "reading_body"
+  | "checking_signature"
+  | "validating_snapshot"
+  | "storing_snapshot"
+  | "response_ready";
 export async function POST(request: Request) {
+  const started = Date.now();
+  let stage: BridgeStage = "headers";
+  let status = 0;
+  const timer = setTimeout(
+    () =>
+      console.warn("MT5 bridge slow request", {
+        stage,
+        elapsed_ms: Date.now() - started,
+      }),
+    8000,
+  );
+  try {
+    const response = await receiveSnapshot(request, (next) => {
+      stage = next;
+    });
+    status = response.status;
+    return response;
+  } finally {
+    clearTimeout(timer);
+    const elapsed_ms = Date.now() - started;
+    if (elapsed_ms >= 2000 || status >= 500)
+      console.warn("MT5 bridge response timing", { stage, status, elapsed_ms });
+  }
+}
+async function receiveSnapshot(
+  request: Request,
+  setStage: (stage: BridgeStage) => void,
+) {
   const headers = { "Cache-Control": "no-store" };
   const secret = process.env.MT5_BRIDGE_SECRET;
   if (
@@ -38,6 +73,7 @@ export async function POST(request: Request) {
       { error: "Unauthorized bridge request" },
       { status: 401, headers },
     );
+  setStage("reading_body");
   let bytes: Buffer;
   try {
     bytes = await snapshotBody(request);
@@ -53,12 +89,14 @@ export async function POST(request: Request) {
       },
     );
   }
+  setStage("checking_signature");
   const digest = snapshotDigest(bytes);
   if (!validBridgeSignature(secret, timestamp, signature, digest, Date.now()))
     return Response.json(
       { error: "Unauthorized bridge request" },
       { status: 401, headers },
     );
+  setStage("validating_snapshot");
   let snapshot, report;
   try {
     snapshot = mt5SnapshotSchema.parse(JSON.parse(bytes.toString("utf8")));
@@ -74,6 +112,7 @@ export async function POST(request: Request) {
       { error: "Snapshot or broker tick is stale; no live data accepted" },
       { status: 422, headers },
     );
+  setStage("storing_snapshot");
   const { data, error } = await serviceDb().rpc("ingest_mt5_snapshot", {
     snapshot,
     fingerprint: digest,
@@ -104,6 +143,7 @@ export async function POST(request: Request) {
       console.warn("Arrival scan unavailable; worker fallback retained.");
     }
   });
+  setStage("response_ready");
   return Response.json(
     { received: true, ...data, signal_published: false },
     { status: 202, headers },
