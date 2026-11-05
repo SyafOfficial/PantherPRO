@@ -23,3 +23,15 @@ test("auth email limits surface sending-cap and cooldown messages without exposi
     /already exists/,
   );
 });
+
+test("Auth timeouts report service unavailability instead of blaming the password", () => {
+  for (const error of [
+    { status: 504 },
+    { status: 0 },
+    { name: "AuthRetryableFetchError" },
+  ])
+    assert.match(
+      authFailureMessage(error, "login"),
+      /service is taking too long/,
+    );
+});

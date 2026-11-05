@@ -1,0 +1,13 @@
+# Login And Auth Timeout Incident
+
+The device continued to fail after the launch-recovery release. The service-worker Retry screen was a symptom fallback, not a confirmed root-cause fix.
+
+Supabase Auth logs at approximately 05:47–05:48 UTC on 5 November 2026 showed password and refresh-token requests returning 504 `request_timeout` / `context deadline exceeded` after roughly 10–12 seconds, followed by some eventual successful responses. `/user` requests also took multiple seconds. No database lock waiters were present when sampled. This establishes Auth timeouts; it does not establish a database deadlock or a Render cold start as the cause.
+
+Public JWKS discovery confirmed ES256 signing. Per current Supabase SSR guidance, proxy and server identity now use `auth.getClaims()` with real signature verification and SDK key caching, instead of performing repeated remote `getUser()` calls on every page/API poll. Profile role still comes from the database and MFA assurance from verified signed claims. Missing profiles are denied; metadata cannot grant a role. Existing database RLS and admin MFA checks remain in place. This follows ordinary JWT expiry semantics; it is not immediate token revocation checking.
+
+The public login page performs no session lookup, and its proxy skips refreshing old cookies, so a failing prior session cannot block access to the password form. Successful login still writes SSR cookies and resolves role before redirecting. Auth fetches have a twelve-second per-request timeout; transient errors are distinguished from invalid credentials. Failed proxy refreshes stop with a no-store 503 rather than triggering a second failing refresh in page rendering. The SDK may perform its own refresh retries; this is not an absolute twelve-second limit on the entire action.
+
+The previous service worker incorrectly imposed its short navigation deadline on native POST form navigations. It now intercepts only GET navigations, never password POSTs, and uses a 45-second GET recovery deadline to avoid prematurely cancelling healthy but slow session refreshes. This does not automatically resubmit credentials. The sign-in button exposes pending state and prevents duplicate submissions.
+
+Tests use locally generated ES256 tokens with the real SDK verifier, reject forged and expired tokens, enforce live-profile roles and signed MFA claims, and check missing-profile/DB-failure behavior. Worker tests prove password POSTs are not intercepted. Full application CI and browser checks run before deployment. Real device login confirmation is still required; no successful user login is inferred from CI, and no password is requested in chat.

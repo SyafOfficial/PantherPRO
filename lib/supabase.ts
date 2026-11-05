@@ -1,4 +1,6 @@
 import "server-only";
+import { authFetch } from "./auth-fetch";
+import { verifiedIdentity } from "./verified-identity";
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -18,6 +20,7 @@ export async function supabase() {
     (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
     {
+      global: { fetch: authFetch },
       cookies: {
         getAll: () => store.getAll(),
         setAll: (items) => {
@@ -35,22 +38,5 @@ export async function supabase() {
 }
 export const identity = cache(async function identity() {
   if (!isConfigured()) return null;
-  const db = await supabase();
-  const {
-    data: { user },
-  } = await db.auth.getUser();
-  if (!user) return null;
-  const { data } = await db
-    .from("profiles")
-    .select("role,display_name")
-    .eq("id", user.id)
-    .single();
-  const assurance = await db.auth.mfa.getAuthenticatorAssuranceLevel();
-  return {
-    aal: assurance.data?.currentLevel ?? "aal1",
-    id: user.id,
-    email: user.email,
-    role: data?.role ?? "public",
-    name: data?.display_name ?? "Member",
-  };
+  return verifiedIdentity(await supabase());
 });

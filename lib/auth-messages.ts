@@ -1,7 +1,13 @@
 export function authFailureMessage(
-  error: { code?: string; status?: number },
+  error: { code?: string; status?: number; name?: string },
   mode: "signup" | "login" | "resend",
 ) {
+  if (
+    error.status === 0 ||
+    (error.status ?? 0) >= 500 ||
+    error.name === "AuthRetryableFetchError"
+  )
+    return "The sign-in service is taking too long. Please wait a moment and retry. Your password has not been changed.";
   if (error.code === "over_email_send_rate_limit")
     return "The email service has reached its sending limit. Please retry later or contact Panther FX support. Repeating registration will not send an email sooner.";
   if (error.code === "over_request_rate_limit" || error.status === 429)

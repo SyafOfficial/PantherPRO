@@ -1,3 +1,4 @@
+import { authFetch } from "./lib/auth-fetch";
 import { productionIssues } from "./lib/deployment";
 import { contentPolicy } from "./lib/content-policy";
 import { createServerClient } from "@supabase/ssr";
@@ -34,12 +35,14 @@ export async function proxy(request: NextRequest) {
     )
   )
     return secure(response);
-  if (request.nextUrl.pathname === "/api/health") return secure(response);
+  if (["/api/health", "/login"].includes(request.nextUrl.pathname))
+    return secure(response);
   const db = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
     {
+      global: { fetch: authFetch },
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll: (items) => {
@@ -55,7 +58,25 @@ export async function proxy(request: NextRequest) {
       },
     },
   );
-  await db.auth.getUser();
+  const { error } = await db.auth.getClaims();
+  if (error && (!error.status || error.status >= 500)) {
+    const unavailable = request.nextUrl.pathname.startsWith("/api/")
+      ? NextResponse.json(
+          { error: "Authentication is temporarily unavailable. Please retry." },
+          { status: 503 },
+        )
+      : new NextResponse(
+          '<!doctype html><html lang="en" style="background:#090a0f;color-scheme:dark"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Panther FX · Reconnect</title><body style="background:#090a0f;color:#f5f5f7;font-family:system-ui;margin:0;min-height:100svh;display:grid;place-items:center"><main style="padding:32px;text-align:center"><p style="color:#d9b66f;letter-spacing:4px">PANTHER FX</p><h1>Let’s Reconnect.</h1><p>The sign-in service is temporarily unavailable. Please retry shortly.</p><a href="/login" style="color:#d9b66f">Return To Sign In</a></main></body></html>',
+          {
+            status: 503,
+            headers: { "Content-Type": "text/html; charset=utf-8" },
+          },
+        );
+    unavailable.headers.set("Cache-Control", "no-store");
+    unavailable.headers.set("Retry-After", "5");
+    // Stop here: forwarding would repeat the same failing refresh in the page.
+    return secure(unavailable);
+  }
   return secure(response);
 }
 export const config = {

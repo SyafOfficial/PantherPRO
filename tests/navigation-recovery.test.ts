@@ -11,7 +11,7 @@ async function worker(fetcher: typeof fetch) {
     AbortController,
     fetch: fetcher,
     setTimeout: (fn: () => void, ms: number) => {
-      assert.equal(ms, 12000);
+      assert.equal(ms, 45000);
       deadline = fn;
       return 1;
     },
@@ -24,7 +24,7 @@ async function worker(fetcher: typeof fetch) {
   const navigate = (url = "https://app.example/?signal=abc") => {
     let result: Promise<Response> | undefined;
     handlers.get("fetch")!({
-      request: { url, mode: "navigate" },
+      request: { url, mode: "navigate", method: "GET" },
       respondWith: (r: Promise<Response>) => {
         result = r;
       },
@@ -76,4 +76,22 @@ test("installed app network and server failures provide recovery without showing
     assert.match(html, /Retry/);
     assert.doesNotMatch(html, /upstream failure/);
   }
+});
+
+test("installed app never cancels or replaces a password form POST", async () => {
+  const w = await worker((async () => {
+    throw Error("must not intercept POST");
+  }) as typeof fetch);
+  let intercepted = false;
+  w.handlers.get("fetch")!({
+    request: {
+      mode: "navigate",
+      method: "POST",
+      url: "https://app.example/login",
+    },
+    respondWith: () => {
+      intercepted = true;
+    },
+  });
+  assert.equal(intercepted, false);
 });

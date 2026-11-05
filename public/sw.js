@@ -36,7 +36,7 @@ async function liveNavigation(request) {
       timer = setTimeout(() => {
         resolve(connectionScreen(request, true));
         controller.abort();
-      }, 12000);
+      }, 45000);
     });
     const live = fetch(request, {
       signal: controller.signal,
@@ -52,7 +52,7 @@ async function liveNavigation(request) {
   }
 }
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode === "navigate")
+  if (event.request.mode === "navigate" && event.request.method === "GET")
     event.respondWith(liveNavigation(event.request));
 });
 
