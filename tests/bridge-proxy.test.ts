@@ -14,6 +14,7 @@ test("HMAC bridge bypasses session proxy while account and admin requests retain
     "/api/push/subscriptions",
     "/api/market/mt5",
     "/api/bridge/mt5-other",
+    "/api/bridge/mt5/admin",
   ])
     assert.equal(matches(path), true, path);
 });
