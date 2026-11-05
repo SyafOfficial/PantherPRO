@@ -1,4 +1,9 @@
 "use client";
+import {
+  signalSession,
+  visibleDailyCount,
+  type DailySignalSummary,
+} from "@/lib/signal-session";
 import { pricePips } from "@/lib/engine/config";
 import { useEffect, useState } from "react";
 import MT5Chart from "@/components/mt5-chart";
@@ -50,21 +55,14 @@ const sections = [
   "Market Analysis",
   "AI Intelligence",
   "Economic Calendar",
-  "Performance",
   "Profile & Notifications",
 ];
-const icons = [
-  Layers3,
-  ChartNoAxesCombined,
-  Sparkles,
-  CalendarDays,
-  Activity,
-  UserRound,
-];
+const icons = [Layers3, ChartNoAxesCombined, Sparkles, CalendarDays, UserRound];
 type Props = {
   mode: "demo" | "connected";
   user: { name: string; role: string; email?: string } | null;
   signals: Record<string, unknown>[];
+  dailySummary?: DailySignalSummary | null;
   dataError: boolean;
   market: MarketSnapshot;
   marketError: boolean;
@@ -93,12 +91,34 @@ export default function Terminal({
   user,
   signals,
   dataError,
+  dailySummary = null,
   market,
   marketError,
   intelligence,
 }: Props) {
   const router = useRouter();
   const [clock, setClock] = useState(Date.parse(market.as_of));
+  const [sessionNow, setSessionNow] = useState(
+    Date.parse(dailySummary?.as_of ?? market.as_of),
+  );
+  const dailyCount = visibleDailyCount(dailySummary, sessionNow);
+  useEffect(() => {
+    if (!dailySummary) return;
+    const serverNow = Date.parse(dailySummary.as_of);
+    const started = performance.now();
+    const tick = () => setSessionNow(serverNow + performance.now() - started);
+    tick();
+    const timer = setInterval(tick, 1000);
+    const refresh = setTimeout(
+      () => router.refresh(),
+      Math.max(1, signalSession(serverNow).nextBoundary - serverNow + 100),
+    );
+    return () => {
+      clearInterval(timer);
+      clearTimeout(refresh);
+    };
+  }, [dailySummary?.as_of, router]);
+
   useEffect(() => {
     const timer = setInterval(() => setClock(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -187,7 +207,6 @@ export default function Terminal({
   }, [signals]);
   const [view, setView] = useState("Signals"),
     [mobile, setMobile] = useState(false),
-    [filter, setFilter] = useState("All signals"),
     [timeframe, setTimeframe] = useState(mode === "demo" ? "1H" : "H1"),
     [notice, setNotice] = useState(false);
   useEffect(() => {
@@ -237,12 +256,11 @@ export default function Terminal({
     };
   }, [mode, user?.email, timeframe]);
   const demo = mode === "demo";
-  const all = demo ? samples : signals;
+  const all = (demo ? samples : signals).filter((s) => s.status === "active");
   const [strategyFilter, setStrategyFilter] = useState("All strategies"),
     [timeframeFilter, setTimeframeFilter] = useState("All timeframes");
   const shown = all.filter(
     (s) =>
-      (filter === "All signals" || String(s.status) === filter.toLowerCase()) &&
       (strategyFilter === "All strategies" || s.strategy === strategyFilter) &&
       (timeframeFilter === "All timeframes" || s.timeframe === timeframeFilter),
   );
@@ -459,7 +477,7 @@ export default function Terminal({
                 <Stat
                   label="ACTIVE SIGNALS"
                   value={String(
-                    all.filter((s) => s.status === "active").length,
+                    dailySummary?.active_count ?? all.length,
                   ).padStart(2, "0")}
                   sub={
                     demo
@@ -469,9 +487,13 @@ export default function Terminal({
                   icon={<Radio size={17} />}
                 />
                 <Stat
-                  label="VERIFIED PERFORMANCE"
-                  value="—"
-                  sub="No verified results available"
+                  label="SIGNALS TODAY"
+                  value={
+                    dailyCount === null
+                      ? "—"
+                      : String(dailyCount).padStart(2, "0")
+                  }
+                  sub="06:00–05:30 MYT · Resets Daily"
                   icon={<Target size={17} />}
                 />
               </div>
@@ -698,23 +720,6 @@ export default function Terminal({
                     </h2>
                     <p>A structured view of every opportunity.</p>
                   </div>
-                  <div className="filter">
-                    <label className="sr-only" htmlFor="signal-filter">
-                      Filter signal status
-                    </label>
-                    <select
-                      id="signal-filter"
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                    >
-                      {["All signals", "Active", "Pending", "Closed"].map(
-                        (s) => (
-                          <option key={s}>{s}</option>
-                        ),
-                      )}
-                    </select>
-                    <ChevronDown size={14} />
-                  </div>
                 </div>
                 {dataError && (
                   <div className="error-message">
@@ -828,7 +833,6 @@ const descriptions: Record<string, string> = {
   "AI Intelligence": "A considered view. Grounded in sources.",
   "Economic Calendar":
     "The events that shape the market. All times in Malaysia time.",
-  Performance: "Transparent records. Measured outcomes.",
   "Profile & Notifications": "Your account. Your preferences. Your control.",
 };
 function Stat({
@@ -1204,31 +1208,6 @@ function Section({
           </p>
         </section>
       </div>
-    );
-  if (view === "Performance")
-    return (
-      <>
-        <div className="stat-grid">
-          {[
-            "TOTAL CLOSED",
-            "WIN / LOSS",
-            "BREAK-EVEN",
-            "AVERAGE RISK / REWARD",
-          ].map((x) => (
-            <Stat
-              key={x}
-              label={x}
-              value="—"
-              sub="Verified outcomes required"
-              icon={<Activity size={17} />}
-            />
-          ))}
-        </div>
-        <Empty
-          title="A track record built on evidence"
-          text="There are no verified historical results yet. Demo signals are excluded from performance. Future results must include source prices, timestamps, costs and pricing assumptions."
-        />
-      </>
     );
   if (view === "AI Intelligence")
     return <IntelligencePanel bundle={intelligence} />;

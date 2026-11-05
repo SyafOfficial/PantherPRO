@@ -3,6 +3,7 @@ import Terminal from "@/components/terminal";
 import { loadIntelligence } from "@/lib/intelligence/service";
 import { identity, isConfigured, supabase } from "@/lib/supabase";
 import type { MarketSnapshot } from "@/lib/market-data";
+import type { DailySignalSummary } from "@/lib/signal-session";
 export const dynamic = "force-dynamic";
 export default async function Page() {
   if (productionIssues(process.env).length)
@@ -19,6 +20,7 @@ export default async function Page() {
     );
   const user = await identity();
   let signals: Record<string, unknown>[] = [];
+  let dailySummary: DailySignalSummary | null = null;
   let dataError = false;
   let marketError = false;
   let market: MarketSnapshot = {
@@ -28,15 +30,20 @@ export default async function Page() {
   };
   if (user) {
     const db = await supabase();
-    const [signalResult, marketResult] = await Promise.all([
+    const [signalResult, marketResult, summaryResult] = await Promise.all([
       db
         .from("signals")
         .select("*")
-        .in("status", ["active", "pending", "closed"])
+        .eq("status", "active")
+        .not("published_at", "is", null)
         .order("created_at", { ascending: false })
         .limit(50),
       db.rpc("get_market_snapshot"),
+      db.rpc("get_member_signal_summary"),
     ]);
+    dailySummary = summaryResult.error
+      ? null
+      : (summaryResult.data as DailySignalSummary);
     signals = signalResult.data ?? [];
     dataError = Boolean(signalResult.error);
     marketError = Boolean(marketResult.error);
@@ -49,6 +56,7 @@ export default async function Page() {
       user={user}
       mode={isConfigured() ? "connected" : "demo"}
       signals={signals}
+      dailySummary={dailySummary}
       dataError={dataError}
       market={market}
       marketError={marketError}

@@ -19,14 +19,11 @@ test("desktop demo is honest, interactive and error-free", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Setup Insight" }),
   ).toBeVisible();
-  await page.getByLabel("Filter signal status").selectOption("Closed");
+  await expect(page.getByLabel("Filter signal status")).toHaveCount(0);
   await expect(
-    page.getByRole("heading", { name: "No signals in this view" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Performance", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "A track record built on evidence" }),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Performance", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("SIGNALS TODAY", { exact: true })).toBeVisible();
   await page
     .getByRole("button", { name: "AI Intelligence", exact: false })
     .first()
@@ -481,4 +478,14 @@ test("Panther launch screen clears and does not replay on in-app navigation", as
   await page.locator("a.brand").click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".app-launch-screen")).toHaveCount(0);
+});
+
+test("performance route requires administrator sign in even in demo mode", async ({
+  page,
+}) => {
+  await page.goto("/admin/performance");
+  await expect(page).toHaveURL(/\/login/);
+  await expect(
+    page.getByRole("heading", { name: "Performance Statistics" }),
+  ).toHaveCount(0);
 });

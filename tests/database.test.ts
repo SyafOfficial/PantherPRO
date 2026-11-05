@@ -2087,3 +2087,244 @@ test("single member access removes tier grants while retaining administrator and
   );
   await db.close();
 });
+
+test("admin performance counts highest TP once, replaces running, protects access and retains history", async () => {
+  const db = await setup();
+  try {
+    await as(db, "admin");
+    const id = await draft(db);
+    await db.query("select public.transition_signal($1,'pending')", [id]);
+    await db.query("select public.transition_signal($1,'active')", [id]);
+    const report = async () =>
+      (
+        await db.query<{ r: any }>(
+          "select public.get_admin_signal_performance(now()-interval '1 day',now()+interval '1 day') r",
+        )
+      ).rows[0].r;
+    let r = await report();
+    assert.equal(r.summary.signals, 1);
+    assert.equal(r.summary.total_pips, 0);
+    await db.exec("reset role");
+    const ledgerBefore = (
+      await db.query<any>(
+        "select updated_at from public.signal_performance_ledger where id=$1",
+        [id],
+      )
+    ).rows[0].updated_at;
+    await db.query(
+      "update public.signals set max_favorable_movement=1 where id=$1",
+      [id],
+    );
+    assert.deepEqual(
+      (
+        await db.query<any>(
+          "select updated_at from public.signal_performance_ledger where id=$1",
+          [id],
+        )
+      ).rows[0].updated_at,
+      ledgerBefore,
+    );
+    await db.query("update public.signals set break_even=true where id=$1", [
+      id,
+    ]);
+    await as(db, "admin");
+    r = await report();
+    assert.equal(r.summary.running_pips, 50);
+    assert.equal(r.summary.wins, 0);
+    await db.exec("reset role");
+    await db.query("update public.signals set tp1_hit_at=now() where id=$1", [
+      id,
+    ]);
+    await as(db, "admin");
+    r = await report();
+    assert.equal(r.summary.total_pips, 100);
+    assert.equal(r.summary.running_pips, 0);
+    assert.equal(r.summary.wins, 1);
+    await db.exec("reset role");
+    await db.query(
+      "update public.signals set tp2_hit_at=now(),tp3_hit_at=now(),stop_observed_at=now(),status='closed',closed_at=now() where id=$1",
+      [id],
+    );
+    await as(db, "admin");
+    r = await report();
+    assert.equal(r.summary.total_pips, 300);
+    assert.equal(r.summary.wins, 1);
+    assert.equal(r.summary.losses, 0);
+    assert.equal(r.summary.sl_hits, 1);
+    assert.equal(r.summary.win_rate, 100);
+    for (const role of ["public", "member"] as const) {
+      await as(db, role);
+      assert.equal(
+        (await db.query("select * from public.signal_performance_ledger")).rows
+          .length,
+        0,
+      );
+      await assert.rejects(report(), /MFA administrator required/);
+      const summary = (
+        await db.query<{ r: any }>(
+          "select public.get_member_signal_summary() r",
+        )
+      ).rows[0].r;
+      assert.equal(summary.active_count, 0);
+    }
+    await as(db, "admin");
+    await db.exec("select set_config('request.jwt.claim.aal','aal1',false)");
+    await assert.rejects(report(), /MFA administrator required/);
+    assert.equal(
+      (await db.query("select * from public.signal_performance_ledger")).rows
+        .length,
+      0,
+    );
+    await as(db, "anon");
+    await assert.rejects(report(), /permission denied/);
+    await assert.rejects(
+      db.query("select public.get_member_signal_summary()"),
+      /permission denied/,
+    );
+    await db.exec("reset role");
+    // Cleanup of source rows must not erase the small historical performance ledger.
+    await db.query(
+      "delete from public.notification_outbox where signal_id=$1",
+      [id],
+    );
+    await db.query("delete from public.signals where id=$1", [id]);
+    await as(db, "admin");
+    r = await report();
+    assert.equal(r.summary.total_pips, 300);
+    assert.equal(r.signals[0].source_signal_id, null);
+  } finally {
+    await db.close();
+  }
+});
+
+test("performance formula handles sell, SL, BE, provisional expiry and MYT boundaries", async () => {
+  const db = await setup();
+  try {
+    await db.exec("reset role");
+    // Synthetic ledger records exist only inside isolated PGlite, never production.
+    const calc = async (state: Record<string, unknown>) =>
+      (
+        await db.query<{ r: any }>(
+          `select to_jsonb(m) r from public.signal_performance_metrics(jsonb_populate_record(null::public.signal_performance_ledger,$1::jsonb)) m`,
+          [
+            JSON.stringify({
+              direction: "SELL",
+              entry: 2000,
+              stop_loss: 2010,
+              tp1: 1990,
+              tp2: 1980,
+              tp3: 1970,
+              status: "active",
+              be_alert: false,
+              ...state,
+            }),
+          ],
+        )
+      ).rows[0].r;
+    assert.equal(
+      (await calc({ tp2_hit_at: new Date().toISOString() })).total_pips,
+      200,
+    );
+    assert.equal(
+      (
+        await calc({
+          be_alert: true,
+          stop_observed_at: new Date().toISOString(),
+          sl_hit_at: new Date().toISOString(),
+          status: "closed",
+        })
+      ).total_pips,
+      -100,
+    );
+    assert.equal(
+      (
+        await calc({
+          be_alert: true,
+          be_exit_at: new Date().toISOString(),
+          status: "closed",
+        })
+      ).outcome,
+      "BE",
+    );
+    assert.equal(
+      (await calc({ be_alert: true, status: "closed" })).total_pips,
+      0,
+    );
+    assert.equal(
+      (await calc({ be_alert: true, status: "closed" })).outcome,
+      "Unclassified",
+    );
+    const before = (
+      await db.query<any>(
+        "select * from public.signal_session_bounds('2026-11-04T21:29:59Z')",
+      )
+    ).rows[0];
+    const gap = (
+      await db.query<any>(
+        "select * from public.signal_session_bounds('2026-11-04T21:30:00Z')",
+      )
+    ).rows[0];
+    const start = (
+      await db.query<any>(
+        "select * from public.signal_session_bounds('2026-11-04T22:00:00Z')",
+      )
+    ).rows[0];
+    assert.equal(
+      new Date(before.session_start).toISOString(),
+      "2026-11-03T22:00:00.000Z",
+    );
+    assert.equal(before.in_break, false);
+    assert.equal(gap.in_break, true);
+    assert.equal(start.in_break, false);
+    assert.equal(
+      new Date(start.session_reset).toISOString(),
+      "2026-11-05T21:30:00.000Z",
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("performance aggregates full range beyond detail cap and captures BE alerts without notifications", async () => {
+  const db = await setup();
+  try {
+    await db.exec("reset role");
+    await db.exec(`insert into public.signal_performance_ledger(id,published_at,strategy,timeframe,higher_timeframe,direction,entry,stop_loss,tp1,tp2,tp3,status,tp1_hit_at)
+   select gen_random_uuid(),now(),'QM','M30','H1','BUY',2000,1990,2010,2020,2030,'closed',now() from generate_series(1,205)`);
+    await as(db, "admin");
+    const get = async (strategy: string | null = null) =>
+      (
+        await db.query<{ r: any }>(
+          "select public.get_admin_signal_performance(now()-interval '1 day',now()+interval '1 day',$1,null) r",
+          [strategy],
+        )
+      ).rows[0].r;
+    let r = await get();
+    assert.equal(r.summary.signals, 205);
+    assert.equal(r.summary.total_pips, 20500);
+    assert.equal(r.signals.length, 200);
+    assert.equal(r.by_setup[0].signals, 205);
+    assert.equal((await get("BOS")).summary.signals, 0);
+    await assert.rejects(
+      db.query(
+        "select public.get_admin_signal_performance(now()-interval '367 days',now())",
+      ),
+      /366 days/,
+    );
+    const id = await draft(db);
+    await db.query("select public.transition_signal($1,'pending')", [id]);
+    await db.query("select public.transition_signal($1,'active')", [id]);
+    await db.exec("reset role");
+    await db.query(
+      "insert into public.notification_outbox(event_key,signal_id,event_type,access,payload) values ($1,$2,'signal.break_even','public','{}'),($3,$2,'signal.be_hit','public','{}')",
+      [`${id}:test-be`, id, `${id}:test-return`],
+    );
+    await as(db, "admin");
+    r = await get();
+    assert.equal(r.summary.be, 1);
+    assert.equal(r.summary.running_pips, 0);
+    assert.equal(r.summary.be_alerts, 1);
+  } finally {
+    await db.close();
+  }
+});
