@@ -31,14 +31,12 @@ export async function POST(request: Request) {
     .eq("user_id", id)
     .single();
   if (error || !data) return new Response(null, { status: 404, headers });
-  const { error: auditError } = await db
-    .from("audit_logs")
-    .insert({
-      actor_id: auth.user.id,
-      action: "client.investor_password_viewed",
-      entity_id: id,
-      details: {},
-    });
+  const { error: auditError } = await db.from("audit_logs").insert({
+    actor_id: auth.user.id,
+    action: "client.investor_password_viewed",
+    entity_id: id,
+    details: {},
+  });
   if (auditError) return new Response(null, { status: 503, headers });
   try {
     return Response.json(
