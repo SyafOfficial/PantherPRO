@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import AppLaunch from "@/components/app-launch";
 export const metadata: Metadata = {
   title: "PANTHER FX | Intelligence Terminal",
   description:
@@ -22,7 +23,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppLaunch>{children}</AppLaunch>
+      </body>
     </html>
   );
 }

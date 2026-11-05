@@ -462,3 +462,23 @@ test("production script nonces are unique and unsigned script injection is block
   );
   expect(executed).toBe(false);
 });
+
+test("Panther launch screen clears and does not replay on in-app navigation", async ({
+  page,
+}) => {
+  await page.goto("/guide", { waitUntil: "commit" });
+  await expect(page.locator(".app-launch-screen")).toBeVisible();
+  await expect(page.locator(".app-launch-screen img")).toHaveAttribute(
+    "src",
+    "/icon.svg",
+  );
+  await expect(page.locator(".app-launch-screen")).toBeHidden({
+    timeout: 6000,
+  });
+  await expect(
+    page.getByRole("heading", { name: "Panther FX Guide", exact: true }),
+  ).toBeVisible();
+  await page.locator("a.brand").click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator(".app-launch-screen")).toHaveCount(0);
+});

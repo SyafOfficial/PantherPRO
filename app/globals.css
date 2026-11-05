@@ -2775,3 +2775,114 @@ footer p {
 .protection-level strong {
   overflow-wrap: anywhere;
 }
+
+/* App launch: show the brand for 1.2s, then cross-fade for 0.6s. */
+.app-launch-screen,
+.route-loading-screen {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  background:
+    radial-gradient(ellipse at center, #d9b66f0a, transparent 60%), #090a0f;
+}
+.app-launch-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  animation: launch-dismiss 0.6s ease-in-out 1.2s both;
+}
+.is-launching > .app-launch-content {
+  animation: launch-reveal 0.6s ease-in-out 1.2s both;
+}
+.panther-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px;
+  text-align: center;
+}
+.panther-loader-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 158px;
+  height: 158px;
+}
+.panther-loader-mark img {
+  position: relative;
+  filter: drop-shadow(0 0 22px #d9b66f18);
+}
+.panther-loader-orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #d9b66f16;
+  border-top-color: #d9b66f;
+  border-radius: 50%;
+  animation: launch-orbit 2.4s linear infinite;
+}
+.panther-loader-name {
+  margin: 28px 0 10px;
+  color: #f5f5f7;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+}
+.panther-loader-name span {
+  color: var(--gold);
+}
+.panther-loader-caption {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.panther-loader-line {
+  width: 44px;
+  height: 2px;
+  margin-top: 24px;
+  border-radius: 2px;
+  background: var(--gold);
+  animation: launch-pulse 1.4s ease-in-out infinite;
+}
+@keyframes launch-dismiss {
+  from {
+    opacity: 1;
+    visibility: visible;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@keyframes launch-reveal {
+  from {
+    opacity: 0;
+    visibility: hidden;
+  }
+  to {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+@keyframes launch-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes launch-pulse {
+  50% {
+    opacity: 0.3;
+    transform: scaleX(0.5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panther-loader-orbit,
+  .panther-loader-line {
+    animation: none;
+  }
+  .app-launch-screen {
+    animation: launch-dismiss 1ms linear 1.2s both;
+  }
+  .is-launching > .app-launch-content {
+    animation: launch-reveal 1ms linear 1.2s both;
+  }
+}
