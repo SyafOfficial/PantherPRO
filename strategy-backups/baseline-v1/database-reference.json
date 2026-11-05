@@ -1,0 +1,182 @@
+{
+  "configuration": {
+    "automatic_policy": {
+      "enabled": true,
+      "version": "vestrado-structure-v1"
+    },
+    "signal_constraints": [
+      {
+        "name": "engine_entry_zone",
+        "definition": "CHECK ((((engine_version IS NULL) AND (entry_low IS NULL) AND (entry_high IS NULL)) OR ((engine_version = 'vestrado-structure-v1'::text) AND (source = 'mt5'::text) AND (entry_low > (0)::numeric) AND (entry_high >= entry_low) AND ((entry >= entry_low) AND (entry <= entry_high)) AND ((entry_high - entry_low) <= (8)::numeric)) OR ((engine_version = 'tick-volume-momentum-v1'::text) AND (source = 'mt5'::text) AND (entry_low = entry) AND (entry_high = entry) AND (access = 'public'::text))))"
+      },
+      {
+        "name": "finite_signal_prices",
+        "definition": "CHECK (((entry <> 'NaN'::numeric) AND (stop_loss <> 'NaN'::numeric) AND (tp1 <> 'NaN'::numeric) AND (tp2 <> 'NaN'::numeric) AND (tp3 <> 'NaN'::numeric)))"
+      },
+      {
+        "name": "signals_check",
+        "definition": "CHECK ((((direction = 'BUY'::text) AND (stop_loss < entry) AND (entry < tp1) AND (tp1 < tp2) AND (tp2 < tp3)) OR ((direction = 'SELL'::text) AND (stop_loss > entry) AND (entry > tp1) AND (tp1 > tp2) AND (tp2 > tp3))))"
+      },
+      {
+        "name": "signals_check1",
+        "definition": "CHECK (((status <> ALL (ARRAY['active'::signal_status, 'closed'::signal_status])) OR ((approved_by IS NOT NULL) AND (published_at IS NOT NULL)) OR ((status = 'closed'::signal_status) AND (published_at IS NULL))))"
+      },
+      {
+        "name": "signals_direction_check",
+        "definition": "CHECK ((direction = ANY (ARRAY['BUY'::text, 'SELL'::text])))"
+      },
+      {
+        "name": "signals_entry_check",
+        "definition": "CHECK ((entry > (0)::numeric))"
+      },
+      {
+        "name": "signals_higher_timeframe_check",
+        "definition": "CHECK ((higher_timeframe = ANY (ARRAY['M15'::text, 'M30'::text, 'H1'::text, 'H4'::text, 'D1'::text, 'W1'::text, 'MN1'::text])))"
+      },
+      {
+        "name": "signals_instrument_check",
+        "definition": "CHECK ((instrument = 'XAUUSD'::text))"
+      },
+      {
+        "name": "signals_max_favorable_movement_check",
+        "definition": "CHECK ((max_favorable_movement >= (0)::numeric))"
+      },
+      {
+        "name": "signals_member_audience",
+        "definition": "CHECK ((access = 'public'::text))"
+      },
+      {
+        "name": "signals_outcome_check",
+        "definition": "CHECK ((outcome = ANY (ARRAY['win'::text, 'loss'::text, 'break_even'::text])))"
+      },
+      {
+        "name": "signals_reasoning_check",
+        "definition": "CHECK (((length(TRIM(BOTH FROM reasoning)) >= 20) AND (length(TRIM(BOTH FROM reasoning)) <= 2000)))"
+      },
+      {
+        "name": "signals_reconciliation_state_check",
+        "definition": "CHECK ((reconciliation_state = ANY (ARRAY['not_started'::text, 'observing'::text, 'gap'::text, 'stopped'::text])))"
+      },
+      {
+        "name": "signals_source_check",
+        "definition": "CHECK ((source = ANY (ARRAY['manual'::text, 'tradingview'::text, 'mt5'::text])))"
+      },
+      {
+        "name": "signals_stop_loss_check",
+        "definition": "CHECK ((stop_loss > (0)::numeric))"
+      },
+      {
+        "name": "signals_strategy_check",
+        "definition": "CHECK ((strategy = ANY (ARRAY['QM'::text, 'QMTR'::text, 'BOS'::text, 'CHOCH'::text, 'TRENDLINE'::text, 'TICK_VOLUME'::text])))"
+      },
+      {
+        "name": "signals_timeframe_check",
+        "definition": "CHECK ((timeframe = ANY (ARRAY['M5'::text, 'M15'::text, 'M30'::text, 'H1'::text, 'H4'::text, 'D1'::text, 'W1'::text, 'MN1'::text])))"
+      },
+      {
+        "name": "signals_tp1_check",
+        "definition": "CHECK ((tp1 > (0)::numeric))"
+      },
+      {
+        "name": "signals_tp2_check",
+        "definition": "CHECK ((tp2 > (0)::numeric))"
+      },
+      {
+        "name": "signals_tp3_check",
+        "definition": "CHECK ((tp3 > (0)::numeric))"
+      },
+      {
+        "name": "tick_method_frame",
+        "definition": "CHECK (((((strategy IS DISTINCT FROM 'TICK_VOLUME'::text) AND (timeframe IS DISTINCT FROM 'M5'::text)) OR ((strategy = 'TICK_VOLUME'::text) AND (timeframe = 'M5'::text) AND (higher_timeframe IS NULL) AND (engine_version = 'tick-volume-momentum-v1'::text))) IS TRUE))"
+      },
+      {
+        "name": "valid_signal_method",
+        "definition": "CHECK ((((strategy IS NULL) AND (timeframe IS NULL) AND (higher_timeframe IS NULL)) OR ((strategy IS NOT NULL) AND (timeframe IS NOT NULL) AND ((higher_timeframe IS NULL) OR (timeframe_minutes(higher_timeframe) > timeframe_minutes(timeframe))))))"
+      }
+    ],
+    "tick_volume_policy": {
+      "enabled": true,
+      "singleton": true,
+      "updated_at": "2026-11-03T16:05:35.012868+00:00"
+    }
+  },
+  "appliedMigrations": [
+    {
+      "version": "20261102145816",
+      "name": "owner_shadow_observation"
+    },
+    {
+      "version": "20261103160300",
+      "name": "tick_volume_publication"
+    },
+    {
+      "version": "20261103163731",
+      "name": "higher_timeframe_targets"
+    },
+    {
+      "version": "20261103173512",
+      "name": "calendar_display_cache"
+    },
+    {
+      "version": "20261104060329",
+      "name": "break_even_zone_return"
+    },
+    {
+      "version": "20261104081855",
+      "name": "m5_close_touch_alerts_and_30_day_signal_retention"
+    },
+    {
+      "version": "20261104082950",
+      "name": "isolate_exit_side_m5_monitor_cursors"
+    },
+    {
+      "version": "20261104140424",
+      "name": "trendline_v2_live"
+    },
+    {
+      "version": "20261104141135",
+      "name": "trendline_v2_price_precision"
+    },
+    {
+      "version": "20261104151759",
+      "name": "remove_vip_membership"
+    }
+  ],
+  "functionPrivileges": [
+    {
+      "proname": "apply_automatic_engine",
+      "arguments": "export_time timestamp with time zone, plans jsonb",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_execute": true
+    },
+    {
+      "proname": "apply_tick_volume",
+      "arguments": "export_time timestamp with time zone, proposal jsonb",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_execute": true
+    },
+    {
+      "proname": "ingest_mt5_snapshot",
+      "arguments": "snapshot jsonb, fingerprint text, export_time timestamp with time zone",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_execute": true
+    },
+    {
+      "proname": "tick_volume_roadblocks",
+      "arguments": "snapshot jsonb, as_of bigint",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_execute": true
+    },
+    {
+      "proname": "valid_trendline_v2_plan",
+      "arguments": "snapshot jsonb, plan jsonb",
+      "anon_execute": false,
+      "authenticated_execute": false,
+      "service_execute": false
+    }
+  ]
+}

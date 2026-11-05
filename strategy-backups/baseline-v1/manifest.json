@@ -1,0 +1,39 @@
+{
+  "name": "Formula Backup v1",
+  "sourceCommit": "08557f10f1d8087397b2cdb2d1ca347bbdb9541b",
+  "sourceBranch": "codex/mt5-engine-rules",
+  "backupBranch": "backups/strategy-formulas-v1",
+  "strategies": [
+    "QM",
+    "BOS",
+    "CHOCH",
+    "TRENDLINE: Bounce",
+    "TRENDLINE: Breakout + Retest",
+    "TICK_VOLUME"
+  ],
+  "databaseProject": "jvhlhuodyivwobjvslmm",
+  "verification": {
+    "restoreFunctions": 5,
+    "privilegesMatch": true,
+    "accountAndSignalRowsInserted": 0,
+    "environment": "Isolated PGlite with scheduler registration stub; no production rollback"
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "33a7b71f2d5c12e706fa44fc29e21ebf41b4fa68d7e7b200e016c20475a62e98"
+    },
+    {
+      "path": "source-rules.json",
+      "sha256": "52dd97ed5adc5a99269043e55a1055ab5e22d3d77fef97573c88b3f3e1c565f3"
+    },
+    {
+      "path": "database-reference.json",
+      "sha256": "614af97574cc424ef0c1d6df3fd60ddf9015b4c9003735e297faa25f03313506"
+    },
+    {
+      "path": "restore-functions.sql",
+      "sha256": "6c65c02b97a3065392c7ab0eb766052420b1b0db9aa49e444e00c9e419f88470"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "brokerRules": {
+    "symbol": "XAUUSD.V",
+    "pipSize": 0.1,
+    "maxZonePips": 80,
+    "slBufferPips": 30,
+    "partialPips": 50,
+    "stopConfirmation": "M5_CLOSE",
+    "allowedSetupFrames": ["M15", "M30", "H1", "H4", "W1", "MN1"],
+    "autoPublish": false
+  },
+  "tickVolume": {
+    "version": "tick-volume-momentum-v1",
+    "lookback": 20,
+    "minimumVolumeRatio": 1.5,
+    "minimumBodyFraction": 0.6,
+    "maximumClosingWickFraction": 0.2
+  },
+  "trendline": {
+    "version": "trendline-v2",
+    "policy": {
+      "atrPeriod": 14,
+      "anchorSpacing": 5,
+      "maxSlopeAtrPerBar": 0.5,
+      "lineToleranceAtr": 0.1,
+      "eventBodyAtr": 0.35,
+      "confirmationBodyAtr": 0.25,
+      "closePosition": 0.65,
+      "stopBufferAtr": 0.15,
+      "minimumRewardRisk": 1.5,
+      "maximumEventAgeBars": 3
+    }
+  }
+}
