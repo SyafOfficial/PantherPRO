@@ -82,7 +82,7 @@ export default async function Clients({
         <p>
           {policy.data?.enforced
             ? "Clients need an approved application to access the terminal and signals."
-            : "Existing member access remains available while the separate account monitor is installed and validated. Onboarding does not yet block the terminal."}
+            : "Existing team accounts retain access during setup. New clients must complete onboarding and remain Pending until their account is verified and approved."}
         </p>
         <form action={setGate}>
           <input

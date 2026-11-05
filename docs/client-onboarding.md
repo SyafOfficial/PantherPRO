@@ -38,15 +38,21 @@ browser clears the revealed password after 30 seconds or on leaving the tab.
 
 ## Deployment boundary
 
-The schema starts in **setup mode** (`client_access_policy.enforced=false`). Existing
-member access is unchanged while a dedicated Windows observer is installed and
-real broker transaction classification is validated. Never claim automated
-monitoring is live just because the website is deployed. The admin can enforce
-onboarding only after a client has a verified approved check in the last 10 minutes.
-Once enabled, database RLS, RPCs, terminal routing, service-backed market/news APIs
-and push delivery all enforce the recorded access decision. An open terminal rechecks
-access each minute and on returning to the tab, routing revoked clients to onboarding.
-Admins remain exempt.
+In **setup mode** (`client_access_policy.enforced=false`), only team accounts
+created before onboarding originally launched retain the temporary access exception.
+The frozen `setup_started_at` cutoff is copied from the initial policy timestamp;
+returning to setup mode never moves it forward. New registrations, including those
+made before this fix but after onboarding launched, must complete the form and remain
+Pending until verified and approved. A revoked application always removes non-admin
+access, including during setup. Existing team members are required to qualify when
+full enforcement is enabled.
+
+Database RLS, RPCs, terminal routing, service-backed APIs and push delivery use the
+same eligibility helper. An open terminal rechecks access each minute and on tab
+return. Admins remain exempt. A dedicated Windows observer and real broker mapping
+still need validation; setup mode does not mean broker monitoring is live. The admin
+can enable full enforcement only after a live client has been verified approved
+within the last 10 minutes.
 
 Set `CLIENT_CREDENTIAL_KEY` and independent `CLIENT_MONITOR_SECRET` on the web
 service. The observer receives only the monitor secret, not the database service

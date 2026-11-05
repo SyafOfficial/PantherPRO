@@ -36,6 +36,10 @@ async function setup(skipRecentDesk = false) {
     "insert into auth.users(id) values ($1),($2),($3)",
     Object.values(ids),
   );
+  // Existing fixtures represent the team present before onboarding launched.
+  await db.exec(
+    "update public.profiles set created_at=(select setup_started_at-interval '1 second' from public.client_access_policy where singleton)",
+  );
   await db.query("update public.profiles set role='admin' where id=$1", [
     ids.admin,
   ]);
@@ -2570,6 +2574,134 @@ test("client onboarding protects credentials, enforces server-side access and qu
         [ids.public, a.revision, result],
       ),
       /Invalid assessment/,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("setup registration gate preserves the original team but blocks newer clients before and after form submission", async () => {
+  const db = await setup();
+  try {
+    await as(db, "public");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.client_access_allowed() as ok",
+        )
+      ).rows[0].ok,
+      true,
+    );
+    await as(db, "service_role");
+    // A client registered after onboarding launched, but before this fix.
+    await db.query(
+      "update public.profiles set created_at=(select setup_started_at+interval '1 second' from public.client_access_policy) where id=$1",
+      [ids.member],
+    );
+    await as(db, "member");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.client_access_allowed() as ok",
+        )
+      ).rows[0].ok,
+      false,
+    );
+    await assert.rejects(
+      db.query("select public.get_market_snapshot()"),
+      /Membership verification/,
+    );
+    await assert.rejects(
+      db.query("select public.get_member_signal_summary()"),
+      /Membership verification/,
+    );
+    await assert.rejects(
+      db.query("select public.get_intelligence_inputs()"),
+      /Membership verification/,
+    );
+    await assert.rejects(
+      db.query(
+        "update public.client_access_policy set setup_started_at=now()+interval '1 day'",
+      ),
+      /permission denied/,
+    );
+    await as(db, "admin");
+    const signal = await draft(db);
+    await db.query("select public.transition_signal($1,'pending')", [signal]);
+    await db.query("select public.transition_signal($1,'active')", [signal]);
+    await as(db, "service_role");
+    await db.query("select public.submit_client_application($1,$2,$3)", [
+      ids.member,
+      {
+        full_name: "New Client",
+        email: "new@example.test",
+        phone: "+60123456789",
+        client_id: "NEW-1",
+        mt5_login: "54321",
+        server: "Vestrado-Live",
+      },
+      "v1.encrypted.test.credential",
+    ]);
+    await as(db, "member");
+    assert.equal(
+      (await db.query("select * from public.client_applications")).rows.length,
+      1,
+    );
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      0,
+    );
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.client_access_allowed() as ok",
+        )
+      ).rows[0].ok,
+      false,
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      1,
+    );
+    await as(db, "service_role");
+    await db.query(
+      "update public.client_applications set status='approved' where user_id=$1",
+      [ids.member],
+    );
+    await as(db, "member");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.client_access_allowed() as ok",
+        )
+      ).rows[0].ok,
+      true,
+    );
+    await as(db, "service_role");
+    await db.query(
+      "update public.client_applications set status='revoked' where user_id=$1",
+      [ids.member],
+    );
+    await as(db, "member");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.client_access_allowed() as ok",
+        )
+      ).rows[0].ok,
+      false,
+    );
+    await as(db, "admin");
+    await db.query("select public.set_client_gate(false)");
+    await as(db, "member");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.client_access_allowed() as ok",
+        )
+      ).rows[0].ok,
+      false,
     );
   } finally {
     await db.close();
