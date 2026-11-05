@@ -102,21 +102,29 @@ export function assessAccount(
       funded_at: prior.funded_at,
       last_trade_at: null,
     };
-  let cash = 0,
-    funded = prior.funded_at;
-  for (const d of deals) {
-    if (d.kind === "deposit" || d.kind === "withdrawal") cash += d.amount;
-    if (!funded && cash >= 300 - 0.000001) funded = d.at;
+  // Credit is separate from MT5 balance. Reconcile the cash/trade ledger as
+  // well so balance-type bonuses cannot masquerade as existing real capital.
+  const bookCapital =
+    deposits -
+    withdrawals +
+    deals.filter((d) => d.kind === "trade").reduce((n, d) => n + d.amount, 0);
+  const eligibleCapital = Math.max(0, Math.min(o.balance, bookCapital));
+  let funded = prior.funded_at ?? prior.approved_at;
+  if (!prior.approved_at && prior.status !== "revoked") {
+    if (eligibleCapital < 300 - 0.000001)
+      return {
+        ...summary,
+        status: "pending",
+        reason: "capital_required",
+        funded_at: null,
+        last_trade_at: null,
+      };
+    // Existing funds qualify; no fresh deposit is required. Establish a new
+    // monitoring baseline rather than penalising historical account activity.
+    funded = o.observed_at;
   }
-  if (!funded)
-    return {
-      ...summary,
-      status: prior.status === "revoked" ? "revoked" : "pending",
-      reason: "deposit_required",
-      funded_at: null,
-      last_trade_at: null,
-    };
-  const start = Date.parse(funded);
+  const approved = prior.approved_at ? Date.parse(prior.approved_at) : observed;
+  const start = approved;
   const trades = deals.filter(
     (d) => d.kind === "trade" && Date.parse(d.at) >= start,
   );
@@ -145,7 +153,6 @@ export function assessAccount(
       funded_at: funded,
       last_trade_at: lastTrade,
     };
-  const approved = prior.approved_at ? Date.parse(prior.approved_at) : now;
   const inactiveSince = Math.max(
     approved,
     lastTrade ? Date.parse(lastTrade) : approved,
@@ -156,7 +163,7 @@ export function assessAccount(
     Boolean(firstTrade) &&
     o.balance <= 0.01 &&
     loss < 0 &&
-    deposits - withdrawals > 0;
+    bookCapital - loss > 0;
   const days = exhaustedByLoss ? 31 : 7;
   const status = now - inactiveSince >= days * DAY ? "revoked" : "approved";
   return {

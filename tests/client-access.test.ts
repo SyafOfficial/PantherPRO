@@ -81,15 +81,20 @@ test("only real funding qualifies; bonus, unknown records and stale history cann
   );
 });
 test("withdrawal before first trade revokes; later withdrawals and ordinary trading losses alone do not", () => {
+  const approved = {
+    status: "approved",
+    approved_at: at(10),
+    funded_at: at(10),
+  };
   const w = { ticket: "3", at: at(2), kind: "withdrawal" as const, amount: -1 };
   assert.equal(
-    assessAccount({ ...base, deals: [...base.deals, w] }, pending, now).reason,
+    assessAccount({ ...base, deals: [...base.deals, w] }, approved, now).reason,
     "withdrawal_before_trade",
   );
   assert.equal(
     assessAccount(
       { ...base, deals: [...base.deals, trade(1), w] },
-      pending,
+      approved,
       now,
     ).status,
     "revoked",
@@ -97,7 +102,7 @@ test("withdrawal before first trade revokes; later withdrawals and ordinary trad
   assert.equal(
     assessAccount(
       { ...base, deals: [...base.deals, trade(3), w] },
-      pending,
+      approved,
       now,
     ).status,
     "approved",
@@ -110,7 +115,7 @@ test("withdrawal before first trade revokes; later withdrawals and ordinary trad
         equity: 100,
         deals: [...base.deals, trade(1, -200)],
       },
-      pending,
+      approved,
       now,
     ).status,
     "approved",
@@ -146,6 +151,69 @@ test("seven-day inactivity has exact boundary; loss-exhausted accounts get 31 da
   assert.equal(
     assessAccount(base, { ...prior, status: "revoked" }, now).status,
     "revoked",
+  );
+});
+test("existing real capital qualifies without a new deposit; old exhausted balances and bonus/floating funds do not", () => {
+  const historical = {
+    ...base,
+    balance: 300,
+    equity: 300,
+    deals: [
+      { ...base.deals[0], at: at(365), amount: 500 },
+      { ticket: "3", at: at(30), kind: "withdrawal" as const, amount: -200 },
+    ],
+  };
+  const existing = assessAccount(historical, pending, now);
+  assert.equal(existing.status, "approved");
+  assert.equal(existing.funded_at, base.observed_at);
+  const profits = {
+    ...base,
+    deals: [{ ...base.deals[0], amount: 100 }, trade(30, 200)],
+  };
+  assert.equal(assessAccount(profits, pending, now).status, "approved");
+  assert.equal(
+    assessAccount(
+      {
+        ...base,
+        balance: 0,
+        equity: 0,
+        deals: [...base.deals, trade(1, -300)],
+      },
+      pending,
+      now,
+    ).status,
+    "pending",
+  );
+  assert.equal(
+    assessAccount(
+      {
+        ...base,
+        deals: [
+          { ...base.deals[0], amount: 100 },
+          { ticket: "4", at: at(1), kind: "bonus", amount: 200 },
+        ],
+      },
+      pending,
+      now,
+    ).status,
+    "pending",
+  );
+  assert.equal(
+    assessAccount(
+      {
+        ...base,
+        balance: 200,
+        equity: 400,
+        deals: [{ ...base.deals[0], amount: 200 }],
+      },
+      pending,
+      now,
+    ).status,
+    "pending",
+  );
+  assert.equal(
+    assessAccount({ ...base, credit: 500 }, pending, now).status,
+    "approved",
   );
 });
 test("credentials are authenticated, owner-bound and monitor authorization is independent", () => {

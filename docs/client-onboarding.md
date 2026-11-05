@@ -15,13 +15,17 @@ browser clears the revealed password after 30 seconds or on leaving the tab.
 
 ## Rules
 
-- Full, reconciled live USD Vestrado account history is required. Credits/bonuses
-  do not contribute to the USD300 threshold; unknown transaction types suppress
-  new approvals pending review. The threshold is cumulative cash deposits less
-  withdrawals, not equity, profits or a screenshot.
-- Withdrawal after funding and before (or simultaneous with) the first real filled
-  trade revokes access. Subsequent withdrawals alone do not revoke access under
-  the owner's current rule. Trading losses below USD300 do not revoke access.
+- Full, reconciled live USD Vestrado account history is required. Admission
+  requires at least USD300 of existing real balance, excluding credits/bonuses
+  and unrealised gains. Existing realised trading profits can form part of this
+  capital; a fresh USD300 deposit is not required. Cash/trade ledger reconciliation
+  also excludes balance-type bonuses. Historical deposits alone do not qualify
+  an account whose current real balance is below USD300. Unknown transactions
+  suppress new approvals pending review.
+- Monitoring starts at app approval. Historical withdrawals/trades before approval
+  do not trigger retrospective revocation. Withdrawal before (or simultaneous with)
+  the first filled trade after approval revokes access. Subsequent withdrawals
+  alone do not revoke access. Trading losses below USD300 do not revoke access.
 - Inactivity is seven elapsed days since approval or the latest filled trade,
   whichever is later. An account at zero balance with trading losses and positive
   net cash funding has 31 elapsed days instead. This replaces the earlier request
