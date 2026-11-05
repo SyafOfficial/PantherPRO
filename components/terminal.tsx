@@ -63,6 +63,8 @@ type Props = {
   user: { name: string; role: string; email?: string } | null;
   signals: Record<string, unknown>[];
   dailySummary?: DailySignalSummary | null;
+  recentPage?: number;
+  hasMoreRecent?: boolean;
   dataError: boolean;
   market: MarketSnapshot;
   marketError: boolean;
@@ -92,6 +94,8 @@ export default function Terminal({
   signals,
   dataError,
   dailySummary = null,
+  recentPage = 0,
+  hasMoreRecent = false,
   market,
   marketError,
   intelligence,
@@ -256,7 +260,16 @@ export default function Terminal({
     };
   }, [mode, user?.email, timeframe]);
   const demo = mode === "demo";
-  const all = (demo ? samples : signals).filter((s) => s.status === "active");
+  const all = demo
+    ? samples
+    : signals.filter(
+        (s) =>
+          s.status === "active" ||
+          Date.parse(String(s.published_at)) > clock - 30 * 86400000,
+      );
+  const activeCount =
+    dailySummary?.active_count ??
+    all.filter((s) => s.status === "active").length;
   const [strategyFilter, setStrategyFilter] = useState("All strategies"),
     [timeframeFilter, setTimeframeFilter] = useState("All timeframes");
   const shown = all.filter(
@@ -306,9 +319,7 @@ export default function Terminal({
                   <span className="tiny-tag">AI</span>
                 )}
                 {s === "Signals" && (
-                  <span className="nav-count">
-                    {all.filter((s) => s.status === "active").length}
-                  </span>
+                  <span className="nav-count">{activeCount}</span>
                 )}
               </button>
             );
@@ -474,9 +485,7 @@ export default function Terminal({
                 />
                 <Stat
                   label="ACTIVE SIGNALS"
-                  value={String(
-                    dailySummary?.active_count ?? all.length,
-                  ).padStart(2, "0")}
+                  value={String(activeCount).padStart(2, "0")}
                   sub={
                     demo
                       ? "Simulated signal"
@@ -710,15 +719,38 @@ export default function Terminal({
                     review.
                   </p>
                 </div>
-                <div className="section-title">
+                <div className="section-title" id="signal-desk">
                   <div>
                     <h2>
                       Signal desk{" "}
-                      <span className="count-pill">{all.length}</span>
+                      <span className="count-pill">{shown.length}</span>
                     </h2>
-                    <p>A structured view of every opportunity.</p>
+                    <p>Selected Recent Signals · Last 30 Days</p>
                   </div>
                 </div>
+                {(recentPage > 0 || hasMoreRecent) && (
+                  <nav
+                    aria-label="Recent signal pages"
+                    style={{ display: "flex", gap: 12, marginBottom: 16 }}
+                  >
+                    {recentPage > 0 && (
+                      <Link
+                        className="secondary-button"
+                        href={`/?recentPage=${recentPage - 1}#signal-desk`}
+                      >
+                        ← Newer Signals
+                      </Link>
+                    )}
+                    {hasMoreRecent && (
+                      <Link
+                        className="secondary-button"
+                        href={`/?recentPage=${recentPage + 1}#signal-desk`}
+                      >
+                        Older Signals →
+                      </Link>
+                    )}
+                  </nav>
+                )}
                 {dataError && (
                   <div className="error-message">
                     Signals could not be loaded. Check the Supabase schema and

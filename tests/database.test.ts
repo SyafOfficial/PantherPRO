@@ -7,7 +7,7 @@ const ids = {
   public: "00000000-0000-4000-8000-000000000002",
   member: "00000000-0000-4000-8000-000000000003",
 };
-async function setup() {
+async function setup(skipRecentDesk = false) {
   const db = new PGlite();
   await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
  create schema auth;create table auth.users(id uuid primary key,raw_user_meta_data jsonb default '{}');
@@ -22,6 +22,8 @@ async function setup() {
     "create schema cron; create function cron.schedule(text,text,text) returns bigint language sql as $$select 1::bigint$$;",
   );
   for (const file of (await readdir("supabase/migrations")).sort()) {
+    if (skipRecentDesk && file.endsWith("_client_recent_signal_desk.sql"))
+      continue;
     const sql = await readFile(`supabase/migrations/${file}`, "utf8");
     await db.exec(
       sql.replace(
@@ -2324,6 +2326,99 @@ test("performance aggregates full range beyond detail cap and captures BE alerts
     assert.equal(r.summary.be, 1);
     assert.equal(r.summary.running_pips, 0);
     assert.equal(r.summary.be_alerts, 1);
+  } finally {
+    await db.close();
+  }
+});
+
+test("client recent desk curates existing TP history once and retains all future results with admin archive access", async () => {
+  const db = await setup(true);
+  try {
+    const existing: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      await as(db, "admin");
+      const id = await draft(db);
+      existing.push(id);
+      await db.query("select public.transition_signal($1,'pending')", [id]);
+      await db.query("select public.transition_signal($1,'active')", [id]);
+      await db.exec("reset role");
+      await db.query(
+        "update public.signals set status='closed',closed_at=now(),tp1_hit_at=case when $2 then now() else null end where id=$1",
+        [id, i < 2],
+      );
+    }
+    const migration =
+      process.env.PANTHER_RECENT_SQL ??
+      `supabase/migrations/${(await readdir("supabase/migrations")).find((f) => f.endsWith("_client_recent_signal_desk.sql"))}`;
+    await db.exec(await readFile(migration, "utf8"));
+    await as(db, "public");
+    let rows = (await db.query<{ id: string }>("select id from public.signals"))
+      .rows;
+    assert.deepEqual(rows.map((r) => r.id).sort(), existing.slice(0, 2).sort());
+    await as(db, "admin");
+    assert.equal(
+      (await db.query("select * from public.signals")).rows.length,
+      5,
+    );
+    assert.equal(
+      (await db.query("select * from public.signal_performance_ledger")).rows
+        .length,
+      5,
+    );
+    const future = await draft(db);
+    await db.query("select public.transition_signal($1,'pending')", [future]);
+    await db.query("select public.transition_signal($1,'active')", [future]);
+    await db.exec("reset role");
+    await db.query(
+      "update public.signals set status='closed',closed_at=now(),stop_observed_at=now() where id=$1",
+      [future],
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select id from public.signals where id=$1", [future]))
+        .rows.length,
+      1,
+    );
+    await db.exec("reset role");
+    await db.query(
+      "update public.signals set published_at=now()-interval '31 days' where id=$1",
+      [future],
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select id from public.signals where id=$1", [future]))
+        .rows.length,
+      0,
+    );
+    await as(db, "admin");
+    assert.equal(
+      (await db.query("select id from public.signals where id=$1", [future]))
+        .rows.length,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select id from public.signal_performance_ledger where id=$1",
+          [future],
+        )
+      ).rows.length,
+      1,
+    );
+    const active = await draft(db);
+    await db.query("select public.transition_signal($1,'pending')", [active]);
+    await db.query("select public.transition_signal($1,'active')", [active]);
+    await db.exec("reset role");
+    await db.query(
+      "update public.signals set published_at=now()-interval '31 days' where id=$1",
+      [active],
+    );
+    await as(db, "public");
+    assert.equal(
+      (await db.query("select id from public.signals where id=$1", [active]))
+        .rows.length,
+      1,
+    );
   } finally {
     await db.close();
   }

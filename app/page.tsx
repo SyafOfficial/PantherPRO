@@ -5,7 +5,19 @@ import { identity, isConfigured, supabase } from "@/lib/supabase";
 import type { MarketSnapshot } from "@/lib/market-data";
 import type { DailySignalSummary } from "@/lib/signal-session";
 export const dynamic = "force-dynamic";
-export default async function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ recentPage?: string }>;
+}) {
+  const params = await searchParams;
+  const parsedPage = Number(params.recentPage ?? 0);
+  const recentPage =
+    Number.isSafeInteger(parsedPage) && parsedPage >= 0 && parsedPage <= 10000
+      ? parsedPage
+      : 0;
+  const pageSize = 50;
+  let hasMoreRecent = false;
   if (productionIssues(process.env).length)
     return (
       <main className="auth-page">
@@ -35,17 +47,23 @@ export default async function Page() {
       db
         .from("signals")
         .select("*")
-        .eq("status", "active")
+        .in("status", ["active", "closed"])
+        .eq("client_desk_visible", true)
+        .or(
+          `status.eq.active,published_at.gt.${new Date(Date.now() - 30 * 86400000).toISOString()}`,
+        )
         .not("published_at", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(50),
+        .order("published_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(recentPage * pageSize, recentPage * pageSize + pageSize),
       db.rpc("get_market_snapshot"),
       db.rpc("get_member_signal_summary"),
     ]);
     dailySummary = summaryResult.error
       ? null
       : (summaryResult.data as DailySignalSummary);
-    signals = signalResult.data ?? [];
+    hasMoreRecent = (signalResult.data?.length ?? 0) > pageSize;
+    signals = (signalResult.data ?? []).slice(0, pageSize);
     dataError = Boolean(signalResult.error);
     marketError = Boolean(marketResult.error);
     if (marketResult.data && !marketResult.error)
@@ -57,6 +75,8 @@ export default async function Page() {
       user={user}
       mode={isConfigured() ? "connected" : "demo"}
       signals={signals}
+      recentPage={recentPage}
+      hasMoreRecent={hasMoreRecent}
       dailySummary={dailySummary}
       dataError={dataError}
       market={market}
