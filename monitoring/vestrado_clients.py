@@ -14,13 +14,13 @@ BASE = "https://pantherpro.onrender.com/api/bridge/clients"
 def instant(milliseconds):
     return dt.datetime.fromtimestamp(milliseconds / 1000, dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
-def classify(deal, mapping):
+def classify(deal, mapping, mt5):
     kind, amount = int(deal.type), float(deal.profit)
-    if kind in (0, 1):  # Filled BUY/SELL deals; pending orders are not trades.
+    if kind in (mt5.DEAL_TYPE_BUY, mt5.DEAL_TYPE_SELL):  # Filled BUY/SELL deals; pending orders are not trades.
         return "trade", amount + float(deal.commission) + float(deal.swap) + float(getattr(deal, "fee", 0))
-    if kind == 7:  # DEAL_TYPE_CREDIT, not cash deposits.
+    if kind in (mt5.DEAL_TYPE_CREDIT, mt5.DEAL_TYPE_BONUS):  # Not cash deposits.
         return "bonus", amount
-    if kind == 6:  # DEAL_TYPE_BALANCE: broker comments MUST be validated first.
+    if kind == mt5.DEAL_TYPE_BALANCE:  # Broker comments MUST be validated first.
         comment = str(deal.comment)
         if amount > 0 and re.fullmatch(mapping["deposit"], comment, re.IGNORECASE):
             return "deposit", amount
@@ -59,7 +59,7 @@ def inspect(mt5, account, terminal, mapping):
     # block approvals; they are never silently interpreted as deposits.
     history = []
     for d in deals:
-        kind, amount = classify(d, mapping)
+        kind, amount = classify(d, mapping, mt5)
         history.append({"ticket": str(d.ticket), "at": instant(d.time_msc), "kind": kind, "amount": amount})
     after = mt5.account_info()
     if after is None or after.login != info.login or abs(after.balance - info.balance) > .01:
