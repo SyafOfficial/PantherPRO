@@ -1,0 +1,11 @@
+{
+  "broker_validated": true,
+  "servers": {
+    "vestrado-server": {
+      "deposit": "(?:D DGPay v2 #[0-9]+|D Online Banking VTP \\(FPX\\))",
+      "withdrawal": "(?:W DGPay v2 #[0-9]+|W IT-Payment Gateway \\(AWP\\))",
+      "bonus": "(?:Bonus In|Bonus Out|Bonus Negative Credit Removal)",
+      "adjustment": "Bonus Negative Balance"
+    }
+  }
+}

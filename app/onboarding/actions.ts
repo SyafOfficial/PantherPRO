@@ -35,3 +35,32 @@ export async function submitApplication(form: FormData) {
     message = "Secure registration is being prepared. Please retry later.";
   redirect("/onboarding?message=" + encodeURIComponent(message));
 }
+
+export async function updateConnection(form: FormData) {
+  const user = await identity();
+  if (!user) redirect("/login");
+  const revision = String(form.get("revision") ?? "");
+  const password = String(form.get("investor_password") ?? "");
+  const confirmation = String(form.get("confirm_password") ?? "");
+  let message =
+    "Please enter matching investor passwords and reload this page.";
+  if (
+    /^[a-f0-9-]{36}$/i.test(revision) &&
+    password.length >= 1 &&
+    password.length <= 128 &&
+    password === confirmation &&
+    credentialReady()
+  ) {
+    const { data, error } = await serviceDb().rpc("update_client_connection", {
+      owner: user.id,
+      expected_revision: revision,
+      server_name: "Vestrado-Server",
+      encrypted: encryptCredential(password, user.id),
+    });
+    message =
+      !error && data === true
+        ? "Investor connection updated. Verification will retry when the monitor is running."
+        : "Could not update. Reload the page and retry, or contact the administrator.";
+  }
+  redirect("/onboarding?message=" + encodeURIComponent(message));
+}

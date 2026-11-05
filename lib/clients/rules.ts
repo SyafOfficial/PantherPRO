@@ -8,10 +8,7 @@ export const applicationSchema = z
       .trim()
       .regex(/^\+?[0-9 ()-]{7,25}$/),
     mt5_login: z.string().regex(/^[1-9][0-9]{3,19}$/),
-    server: z
-      .string()
-      .trim()
-      .regex(/^Vestrado[A-Za-z0-9 ._-]{0,90}$/i),
+    server: z.literal("Vestrado-Server"),
     investor_password: z.string().min(1).max(128),
     consent: z.literal("yes"),
   })
@@ -40,6 +37,7 @@ export const observationSchema = z
               "deposit",
               "withdrawal",
               "bonus",
+              "adjustment",
               "trade",
               "unknown",
             ]),
@@ -55,6 +53,7 @@ export type ClientState = {
   status: string;
   approved_at: string | null;
   funded_at: string | null;
+  reason?: string;
 };
 const DAY = 86400000;
 /** Fixed rules over verified full broker history, never an LLM inference. */
@@ -98,16 +97,24 @@ export function assessAccount(
     return {
       ...summary,
       status: prior.status,
-      reason: "transaction_review",
+      reason: prior.reason?.startsWith("manual_owner_override")
+        ? prior.reason
+        : "transaction_review",
       funded_at: prior.funded_at,
       last_trade_at: null,
     };
   // Credit is separate from MT5 balance. Reconcile the cash/trade ledger as
   // well so balance-type bonuses cannot masquerade as existing real capital.
-  const bookCapital =
-    deposits -
-    withdrawals +
-    deals.filter((d) => d.kind === "trade").reduce((n, d) => n + d.amount, 0);
+  let bookCapital = 0;
+  for (const d of deals) {
+    if (["deposit", "withdrawal", "trade"].includes(d.kind))
+      bookCapital += d.amount;
+    if (d.kind === "adjustment") {
+      // Negative-balance protection may erase a deficit, never create capital.
+      bookCapital +=
+        d.amount > 0 ? Math.min(d.amount, Math.max(0, -bookCapital)) : d.amount;
+    }
+  }
   const eligibleCapital = Math.max(0, Math.min(o.balance, bookCapital));
   let funded = prior.funded_at ?? prior.approved_at;
   if (!prior.approved_at && prior.status !== "revoked") {
@@ -174,7 +181,9 @@ export function assessAccount(
         ? exhaustedByLoss
           ? "loss_inactive_31_days"
           : "inactive_7_days"
-        : "eligible",
+        : prior.reason?.startsWith("manual_owner_override")
+          ? prior.reason
+          : "eligible",
     funded_at: funded,
     last_trade_at: lastTrade,
   };

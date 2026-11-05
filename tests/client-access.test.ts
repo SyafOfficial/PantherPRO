@@ -242,3 +242,42 @@ test("credentials are authenticated, owner-bound and monitor authorization is in
     true,
   );
 });
+
+test("negative-balance adjustments cannot fabricate capital and manual admission stays labelled", () => {
+  const bonus = {
+    ...base,
+    balance: 300,
+    deals: [{ ...base.deals[0], kind: "bonus" as const }],
+  };
+  assert.equal(assessAccount(bonus, pending, now).status, "pending");
+  assert.equal(
+    assessAccount(
+      { ...base, deals: [{ ...base.deals[0], kind: "adjustment" }] },
+      pending,
+      now,
+    ).status,
+    "pending",
+  );
+  const recovered = {
+    ...base,
+    deals: [
+      { ticket: "9", at: at(40), kind: "trade" as const, amount: -100 },
+      { ticket: "10", at: at(39), kind: "adjustment" as const, amount: 100 },
+      ...base.deals,
+    ],
+  };
+  assert.equal(assessAccount(recovered, pending, now).status, "approved");
+  assert.equal(
+    assessAccount(
+      bonus,
+      {
+        status: "approved",
+        approved_at: at(1),
+        funded_at: null,
+        reason: "manual_owner_override_bonus_funds_acknowledged",
+      },
+      now,
+    ).reason,
+    "manual_owner_override_bonus_funds_acknowledged",
+  );
+});

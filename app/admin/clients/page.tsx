@@ -102,6 +102,33 @@ export default async function Clients({
           do not count as inactivity.
         </small>
       </section>
+      <section className="panel content-panel">
+        <h2>Automatic account verification</h2>
+        <p>
+          Keep the dedicated VPS observer running to check accounts, approve
+          eligible real capital and queue administrator push alerts. This
+          website alone cannot read client accounts.
+        </p>
+        <a href="/api/admin/client-monitor" className="primary-button">
+          Download VPS observer launcher
+        </a>
+        <p>
+          Run the downloaded launcher on the VPS using the separate
+          Panther-Client-Monitor terminal. Enter CLIENT_MONITOR_SECRET from the
+          web service environment at its hidden prompt. Never use the
+          price-bridge secret.
+        </p>
+        <small>
+          Start with a single verification pass. Unknown transfer sources remain
+          Pending for review. Existing team access is unchanged; full
+          enforcement is a separate control.
+        </small>
+        <p>
+          <Link href="/account">
+            Enable notifications on this administrator device →
+          </Link>
+        </p>
+      </section>
       <div className="client-directory">
         {applications.data?.slice(0, 25).map((a) => (
           <article className="panel content-panel" key={a.user_id}>

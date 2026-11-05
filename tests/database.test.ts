@@ -2707,3 +2707,202 @@ test("setup registration gate preserves the original team but blocks newer clien
     await db.close();
   }
 });
+
+test("connection corrections retain approval clocks, reject stale/revoked changes and keep automatic approval push admin-only", async () => {
+  const db = await setup();
+  try {
+    await as(db, "service_role");
+    const details = {
+      full_name: "Client",
+      email: "client@example.test",
+      phone: "+60123456789",
+      client_id: "C-1",
+      mt5_login: "12345",
+      server: "Vestrado-Server",
+    };
+    await db.query("select public.submit_client_application($1,$2,$3)", [
+      ids.public,
+      details,
+      "v1.initial.encrypted.credential",
+    ]);
+    const revision = (
+      await db.query<{ revision: string }>(
+        "select revision from public.client_applications where user_id=$1",
+        [ids.public],
+      )
+    ).rows[0].revision;
+    await as(db, "public");
+    await assert.rejects(
+      db.query("select public.update_client_connection($1,$2,$3,$4)", [
+        ids.member,
+        revision,
+        "Vestrado-Server",
+        "v1.replacement.encrypted.credential",
+      ]),
+      /permission denied/,
+    );
+    await as(db, "service_role");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.update_client_connection($1,$2,$3,$4) as ok",
+          [
+            ids.public,
+            revision,
+            "Vestrado-Server",
+            "v1.replacement.encrypted.credential",
+          ],
+        )
+      ).rows[0].ok,
+      true,
+    );
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.update_client_connection($1,$2,$3,$4) as ok",
+          [
+            ids.public,
+            revision,
+            "Vestrado-Server",
+            "v1.replacement.encrypted.credential",
+          ],
+        )
+      ).rows[0].ok,
+      false,
+    );
+    const fresh = (
+      await db.query<{ revision: string }>(
+        "select revision from public.client_applications where user_id=$1",
+        [ids.public],
+      )
+    ).rows[0].revision;
+    const result = {
+      status: "approved",
+      reason: "eligible",
+      funded_at: new Date().toISOString(),
+      last_trade_at: null,
+      balance: 300,
+      equity: 300,
+      credit: 0,
+      deposits: 300,
+      withdrawals: 0,
+    };
+    const stamp = new Date().toISOString();
+    await db.query("select public.record_client_assessment($1,$2,$3,$4)", [
+      ids.public,
+      fresh,
+      stamp,
+      result,
+    ]);
+    await db.query("select public.record_client_assessment($1,$2,$3,$4)", [
+      ids.public,
+      fresh,
+      stamp,
+      result,
+    ]);
+    const approvedAt = (
+      await db.query<{ approved_at: string }>(
+        "select approved_at from public.client_applications where user_id=$1",
+        [ids.public],
+      )
+    ).rows[0].approved_at;
+    await db.query("select public.update_client_connection($1,$2,$3,$4)", [
+      ids.public,
+      fresh,
+      "Vestrado-Server",
+      "v1.rotated.encrypted.credential",
+    ]);
+    const unchanged = (
+      await db.query<{ status: string; approved_at: string }>(
+        "select status,approved_at from public.client_applications where user_id=$1",
+        [ids.public],
+      )
+    ).rows[0];
+    assert.equal(unchanged.status, "approved");
+    assert.equal(
+      new Date(unchanged.approved_at).getTime(),
+      new Date(approvedAt).getTime(),
+    );
+    const outbox = await db.query<{ id: string; recipient_id: string }>(
+      "select id,recipient_id from public.notification_outbox where event_type='client.approved'",
+    );
+    assert.equal(outbox.rows.length, 1);
+    assert.equal(outbox.rows[0].recipient_id, ids.admin);
+    const devices = [];
+    for (const role of ["admin", "member"] as const) {
+      await as(db, role);
+      const r = await db.query<{ id: string }>(
+        "select public.register_push_subscription($1) as id",
+        [
+          {
+            endpoint: `https://fcm.googleapis.com/fcm/send/${role}-client-alert`,
+            keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+          },
+        ],
+      );
+      // Resolve device IDs through the owner-scoped table (RPC response is not an ID contract).
+      devices.push(
+        (
+          await db.query<{ id: string }>(
+            "select id from public.push_subscriptions where user_id=$1",
+            [ids[role]],
+          )
+        ).rows[0].id,
+      );
+    }
+    await as(db, "service_role");
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.notification_allowed($1,$2) as ok",
+          [outbox.rows[0].id, devices[0]],
+        )
+      ).rows[0].ok,
+      true,
+    );
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.notification_allowed($1,$2) as ok",
+          [outbox.rows[0].id, devices[1]],
+        )
+      ).rows[0].ok,
+      false,
+    );
+    await db.query("select public.prepare_push_deliveries()");
+    await db.query("select public.prepare_push_deliveries()");
+    await as(db, "admin");
+    const deliveries = await db.query(
+      "select * from public.notification_deliveries where outbox_id=$1",
+      [outbox.rows[0].id],
+    );
+    assert.equal(deliveries.rows.length, 1);
+    await as(db, "service_role");
+    await db.query(
+      "update public.client_applications set status='revoked' where user_id=$1",
+      [ids.public],
+    );
+    const revoked = (
+      await db.query<{ revision: string }>(
+        "select revision from public.client_applications where user_id=$1",
+        [ids.public],
+      )
+    ).rows[0].revision;
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.update_client_connection($1,$2,$3,$4) as ok",
+          [
+            ids.public,
+            revoked,
+            "Vestrado-Server",
+            "v1.new.encrypted.credential",
+          ],
+        )
+      ).rows[0].ok,
+      false,
+    );
+  } finally {
+    await db.close();
+  }
+});

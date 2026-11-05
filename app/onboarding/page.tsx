@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { identity, supabase } from "@/lib/supabase";
 import { credentialReady } from "@/lib/clients/crypto";
-import { submitApplication } from "./actions";
+import { submitApplication, updateConnection } from "./actions";
 import AuthSubmit from "@/components/auth-submit";
 export const dynamic = "force-dynamic";
 export default async function Onboarding({
@@ -18,7 +18,7 @@ export default async function Onboarding({
   )
     .from("client_applications")
     .select(
-      "status,reason,full_name,mt5_login,server,approved_at,last_checked_at",
+      "status,reason,revision,full_name,mt5_login,server,approved_at,last_checked_at",
     )
     .eq("user_id", user.id)
     .maybeSingle();
@@ -69,9 +69,57 @@ export default async function Onboarding({
                 Enter your workspace →
               </Link>
             )}
+            {application.status !== "revoked" && (
+              <details className="client-terms">
+                <summary>Update investor connection</summary>
+                <p>
+                  Correct your investor password here. Your account number,
+                  access decision and activity dates remain unchanged.
+                </p>
+                <form action={updateConnection} className="form">
+                  <input
+                    type="hidden"
+                    name="revision"
+                    value={application.revision}
+                  />
+                  <label>
+                    Vestrado server
+                    <input value="Vestrado-Server" readOnly />
+                  </label>
+                  <label>
+                    Investor password
+                    <input
+                      type="password"
+                      name="investor_password"
+                      autoComplete="off"
+                      required
+                      maxLength={128}
+                    />
+                  </label>
+                  <label>
+                    Confirm investor password
+                    <input
+                      type="password"
+                      name="confirm_password"
+                      autoComplete="off"
+                      required
+                      maxLength={128}
+                    />
+                  </label>
+                  <small>
+                    Read-only investor password only. Do not enter your
+                    trading/master password.
+                  </small>
+                  <AuthSubmit
+                    label="Update connection"
+                    disabled={!credentialReady()}
+                  />
+                </form>
+              </details>
+            )}
             <small>
-              Need to correct your details or update your investor password?
-              Contact the administrator.
+              For changes to your account number or personal details, contact
+              the administrator.
             </small>
           </>
         ) : (
@@ -117,12 +165,9 @@ export default async function Onboarding({
               </label>
               <label>
                 Vestrado server
-                <input
-                  name="server"
-                  placeholder="Exact server name"
-                  required
-                  maxLength={98}
-                />
+                <select name="server" required defaultValue="Vestrado-Server">
+                  <option value="Vestrado-Server">Vestrado-Server</option>
+                </select>
               </label>
             </div>
             <label>

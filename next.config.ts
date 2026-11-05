@@ -4,6 +4,12 @@ const config: NextConfig = {
   // output can be empty in the managed build environment.
   experimental: { useTypeScriptCli: false },
   poweredByHeader: false,
+  outputFileTracingIncludes: {
+    "/api/admin/client-monitor": [
+      "./monitoring/vestrado_clients.py",
+      "./monitoring/vestrado-mapping.json",
+    ],
+  },
   deploymentId: process.env.RENDER_GIT_COMMIT,
   allowedDevOrigins: ["127.0.0.1"],
   async headers() {
