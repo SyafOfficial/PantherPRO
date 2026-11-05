@@ -16,9 +16,10 @@ browser clears the revealed password after 30 seconds or on leaving the tab.
 ## Rules
 
 - Full, reconciled live USD Vestrado account history is required. Admission
-  requires at least USD300 of existing real balance, excluding credits/bonuses
-  and unrealised gains. Existing realised trading profits can form part of this
-  capital; a fresh USD300 deposit is not required. Cash/trade ledger reconciliation
+  requires at least USD300 in verified cash deposits and at least USD300 of
+  current real balance, excluding credits/bonuses and unrealised gains. Existing
+  deposits qualify; a fresh deposit is not required. Realised profits can form
+  part of current capital but do not replace the real-deposit minimum. Cash/trade ledger reconciliation
   also excludes balance-type bonuses. Historical deposits alone do not qualify
   an account whose current real balance is below USD300. Unknown transactions
   suppress new approvals pending review.

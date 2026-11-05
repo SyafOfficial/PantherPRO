@@ -188,12 +188,13 @@ export default async function Onboarding({
             <div className="client-terms">
               <strong>Membership requirements</strong>
               <p>
-                Maintain at least USD300 in real account balance when applying,
-                excluding bonuses. Existing capital qualifies; no new deposit is
-                required. Do not withdraw before your first trade after
-                approval. Membership requires trading activity within each
-                seven-day period. An account exhausted by trading losses has a
-                31-day inactivity allowance.
+                Have at least USD300 in verified real cash deposits and at least
+                USD300 in real account balance when applying, excluding bonuses.
+                Existing capital qualifies; no new deposit is required. Do not
+                withdraw before your first trade after approval. Membership
+                requires trading activity within each seven-day period. An
+                account exhausted by trading losses has a 31-day inactivity
+                allowance.
               </p>
               <p>
                 Trading losses alone do not cancel membership. No trade size or

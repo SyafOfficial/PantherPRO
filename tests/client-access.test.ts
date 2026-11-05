@@ -170,7 +170,10 @@ test("existing real capital qualifies without a new deposit; old exhausted balan
     ...base,
     deals: [{ ...base.deals[0], amount: 100 }, trade(30, 200)],
   };
-  assert.equal(assessAccount(profits, pending, now).status, "approved");
+  assert.equal(
+    assessAccount(profits, pending, now).reason,
+    "real_deposit_required",
+  );
   assert.equal(
     assessAccount(
       {
@@ -280,4 +283,15 @@ test("negative-balance adjustments cannot fabricate capital and manual admission
     ).reason,
     "manual_owner_override_bonus_funds_acknowledged",
   );
+});
+
+test("bonus-funded trading profits cannot replace the USD300 real-deposit requirement", () => {
+  const o = {
+    ...base,
+    balance: 600,
+    equity: 600,
+    deals: [{ ...base.deals[0], kind: "bonus" as const }, trade(1, 300)],
+  };
+  assert.equal(assessAccount(o, pending, now).status, "pending");
+  assert.equal(assessAccount(o, pending, now).reason, "real_deposit_required");
 });

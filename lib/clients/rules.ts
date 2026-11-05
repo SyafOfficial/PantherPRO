@@ -118,6 +118,14 @@ export function assessAccount(
   const eligibleCapital = Math.max(0, Math.min(o.balance, bookCapital));
   let funded = prior.funded_at ?? prior.approved_at;
   if (!prior.approved_at && prior.status !== "revoked") {
+    if (deposits < 300 - 0.000001)
+      return {
+        ...summary,
+        status: "pending",
+        reason: "real_deposit_required",
+        funded_at: null,
+        last_trade_at: null,
+      };
     if (eligibleCapital < 300 - 0.000001)
       return {
         ...summary,
