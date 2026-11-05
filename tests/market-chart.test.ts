@@ -33,7 +33,7 @@ test("real chart draws supplied broker candles and changes bid line only when qu
   const render = (d: MT5Display, fresh = true) =>
     renderToStaticMarkup(React.createElement(MT5Chart, { data: d, fresh }));
   const html = render(data);
-  assert.match(html, /Actual Vestrado XAUUSD.V H1/);
+  assert.match(html, /XAUUSD H1 completed candlestick chart/);
   assert.match(html, /3904\.35/);
   assert.match(html, /O 3900 H 3910 L 3890 C 3905/);
   assert.doesNotMatch(html, /DEMO|Fictional|2,346\.80/);
