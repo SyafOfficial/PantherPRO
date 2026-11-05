@@ -265,8 +265,6 @@ export default function Terminal({
       (timeframeFilter === "All timeframes" || s.timeframe === timeframeFilter),
   );
   useEffect(() => {
-    if ("serviceWorker" in navigator)
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
     const v = new URLSearchParams(location.search).get("view");
     if (v && sections.includes(v)) setView(v);
   }, []);
