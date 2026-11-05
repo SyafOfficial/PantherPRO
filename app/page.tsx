@@ -1,3 +1,4 @@
+import ClientAccessWatch from "@/components/client-access-watch";
 import { redirect } from "next/navigation";
 import { clientAccessAllowed } from "@/lib/clients/access";
 import { productionIssues } from "@/lib/deployment";
@@ -74,17 +75,20 @@ export default async function Page({
   }
   const intelligence = await intelligencePromise;
   return (
-    <Terminal
-      user={user}
-      mode={isConfigured() ? "connected" : "demo"}
-      signals={signals}
-      recentPage={recentPage}
-      hasMoreRecent={hasMoreRecent}
-      dailySummary={dailySummary}
-      dataError={dataError}
-      market={market}
-      marketError={marketError}
-      intelligence={intelligence}
-    />
+    <>
+      <ClientAccessWatch enabled={Boolean(user && user.role !== "admin")} />
+      <Terminal
+        user={user}
+        mode={isConfigured() ? "connected" : "demo"}
+        signals={signals}
+        recentPage={recentPage}
+        hasMoreRecent={hasMoreRecent}
+        dailySummary={dailySummary}
+        dataError={dataError}
+        market={market}
+        marketError={marketError}
+        intelligence={intelligence}
+      />
+    </>
   );
 }

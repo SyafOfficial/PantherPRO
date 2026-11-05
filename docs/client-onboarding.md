@@ -40,7 +40,9 @@ real broker transaction classification is validated. Never claim automated
 monitoring is live just because the website is deployed. The admin can enforce
 onboarding only after a client has a verified approved check in the last 10 minutes.
 Once enabled, database RLS, RPCs, terminal routing, service-backed market/news APIs
-and push delivery all enforce the recorded access decision. Admins remain exempt.
+and push delivery all enforce the recorded access decision. An open terminal rechecks
+access each minute and on returning to the tab, routing revoked clients to onboarding.
+Admins remain exempt.
 
 Set `CLIENT_CREDENTIAL_KEY` and independent `CLIENT_MONITOR_SECRET` on the web
 service. The observer receives only the monitor secret, not the database service
