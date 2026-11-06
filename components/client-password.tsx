@@ -17,7 +17,7 @@ export default function ClientPassword({ id }: { id: string }) {
     };
   }, [value]);
   return (
-    <div>
+    <div className="client-credential">
       {value ? (
         <>
           <code>{value}</code>
