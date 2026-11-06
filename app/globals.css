@@ -3367,6 +3367,7 @@ h4 {
   }
 }
 .workspace-links {
+  gap: 12px;
   margin-block: 20px 28px;
 }
 .admin-actions:not(:empty) + .content-panel {
