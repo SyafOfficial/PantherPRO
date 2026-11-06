@@ -3798,3 +3798,17 @@ h4 {
     flex-direction: column;
   }
 }
+.welcome-page > main {
+  padding: 0;
+  margin: 0;
+  max-width: none;
+}
+.welcome-header .brand {
+  margin: 0;
+}
+.welcome-footer {
+  margin-top: 0;
+}
+.welcome-footer p {
+  font-size: 11px;
+}

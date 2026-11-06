@@ -19,6 +19,13 @@ for (const width of [320, 390, 768, 1440]) {
         path: `/tmp/panther-home-${width}.png`,
         fullPage: true,
       });
+    if (width >= 768) {
+      const brand = await page.locator(".welcome-header .brand").boundingBox();
+      const nav = await page.locator(".welcome-header nav").boundingBox();
+      expect(
+        Math.abs(brand!.y + brand!.height / 2 - nav!.y - nav!.height / 2),
+      ).toBeLessThan(2);
+    }
     const controls = page.locator(".welcome-hero-actions a");
     const first = await controls.nth(0).boundingBox();
     const second = await controls.nth(1).boundingBox();
