@@ -73,7 +73,7 @@ test("long client details, statuses and revealed credentials stay inside cards",
   await page.goto("/account");
   await expect(page.locator(".app-launch-screen")).toBeHidden();
   await page.locator("main").evaluate((main) => {
-    main.className = "admin-page";
+    main.setAttribute("class", "admin-page");
     main.innerHTML = `<section class="panel content-panel">
       <div class="signal-heading"><h2>Nur Aisyah Binti Abdullah Muhammad</h2><span class="outline-tag">Awaiting account verification</span></div>
       <p>averylongclientemailaddress@example.test · +60 123456789</p>
