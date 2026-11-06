@@ -52,6 +52,16 @@ for (const width of [320, 390, 768, 1440]) {
         return problems;
       });
       expect(issues, route).toEqual([]);
+      if (route === "/admin") {
+        const links = page
+          .getByRole("navigation", { name: "Administration", exact: true })
+          .getByRole("link");
+        const a = await links.nth(0).boundingBox();
+        const b = await links.nth(1).boundingBox();
+        expect(
+          Math.max(b!.x - a!.x - a!.width, b!.y - a!.y - a!.height),
+        ).toBeGreaterThanOrEqual(11);
+      }
     }
   });
 }

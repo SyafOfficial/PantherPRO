@@ -104,12 +104,17 @@ export default async function Admin({
           or administrative operations are available in demo mode.
         </div>
       )}
-      <Link href="/admin/performance" className="secondary-button">
-        Performance Statistics →
-      </Link>
-      <Link href="/admin/clients" className="secondary-button">
-        Client Directory &amp; Access →
-      </Link>
+      <nav
+        className="admin-actions workspace-links"
+        aria-label="Administration"
+      >
+        <Link href="/admin/performance" className="secondary-button">
+          Performance Statistics →
+        </Link>
+        <Link href="/admin/clients" className="secondary-button">
+          Client Directory &amp; Access →
+        </Link>
+      </nav>
       <h1>Command center.</h1>
       <p>Review first. Publish deliberately. Every change leaves a record.</p>
       {params.message && (

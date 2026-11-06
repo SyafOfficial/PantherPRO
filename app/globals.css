@@ -3366,3 +3366,9 @@ h4 {
     flex: 1 1 100%;
   }
 }
+.workspace-links {
+  margin-block: 20px 28px;
+}
+.admin-actions:not(:empty) + .content-panel {
+  margin-top: 24px;
+}
