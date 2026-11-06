@@ -43,7 +43,7 @@ export const setupInputSchema = z
     id: z.string().min(1).max(150),
     provider: z.string().min(1),
     timeframe: z.enum(setupFrames),
-    method: z.enum(["QM", "BOS", "CHOCH", "TRENDLINE"]),
+    method: z.enum(["QM", "BOS", "CHOCH", "TRENDLINE", "HNS"]),
     direction: z.enum(["BUY", "SELL"]),
     zoneLow: z.number().positive().finite(),
     zoneHigh: z.number().positive().finite(),

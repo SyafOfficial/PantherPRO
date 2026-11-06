@@ -1,3 +1,4 @@
+import { scanHns } from "./hns";
 import { createHash } from "node:crypto";
 import {
   scanAutomatic,
@@ -94,7 +95,18 @@ export function makeTrendlinePlan(
 export function scanLiveAutomatic(raw: unknown, now: number) {
   const result = scanAutomatic(raw, now);
   const snapshot = mt5SnapshotSchema.parse(raw);
-  const structural = result.plans.filter((p) => p.method !== "TRENDLINE");
+  const structural: AutomaticPlan[] = [];
+  const hnsKeys = new Set<string>();
+  for (const p of [
+    ...scanHns(snapshot, now),
+    ...result.plans.filter((p) => p.method !== "TRENDLINE"),
+  ]) {
+    const key = `${p.timeframe}:${p.direction}:${p.confirmationOpenedServer}`;
+    if (!hnsKeys.has(key)) {
+      structural.push(p);
+      hnsKeys.add(key);
+    }
+  }
   const proposals = scanTrendlinePreview(snapshot, now).proposals;
   const seen = new Set(
     structural.map(

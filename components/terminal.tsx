@@ -698,7 +698,7 @@ export default function Terminal({
                     </select>
                   </label>
                   <p>
-                    QM · BOS · CHOCH · Trendline
+                    QM · BOS · CHOCH · Trendline · HNS
                     <br />
                     M15 to Monthly. No daily signal target; setups require
                     review.

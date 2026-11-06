@@ -1,4 +1,4 @@
-export const STRATEGIES = ["QM", "BOS", "CHOCH", "TRENDLINE"] as const;
+export const STRATEGIES = ["QM", "BOS", "CHOCH", "TRENDLINE", "HNS"] as const;
 export const TIMEFRAMES = ["M15", "M30", "H1", "H4", "W1", "MN1"] as const;
 export const TIMEFRAME_MINUTES = {
   M15: 15,
@@ -14,4 +14,5 @@ export const STRATEGY_LABELS = {
   BOS: "BOS · Break of Structure",
   CHOCH: "CHOCH · Change of Character",
   TRENDLINE: "Trendline",
+  HNS: "HNS · Head and Shoulders",
 };

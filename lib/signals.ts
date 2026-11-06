@@ -17,6 +17,14 @@ export const signalSchema = z
   })
   .superRefine((s, ctx) => {
     if (
+      s.strategy === "HNS" &&
+      !["M15", "M30", "H1", "H4"].includes(s.timeframe ?? "")
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "HNS setup timeframes are M15, M30, H1 and H4.",
+      });
+    if (
       Boolean(s.strategy) !== Boolean(s.timeframe) ||
       (!s.timeframe && s.higher_timeframe) ||
       (s.timeframe &&
