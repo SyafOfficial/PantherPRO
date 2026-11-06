@@ -755,42 +755,20 @@ export default function Terminal({
                   />
                 )}
               </section>
-              <div className="lower-grid">
-                <section className="panel compact-panel">
-                  <div className="section-title">
-                    <h2>
-                      <CalendarDays size={17} /> On the horizon
-                    </h2>
-                    <button
-                      className="text-button"
-                      onClick={() => navigate("Economic Calendar")}
-                    >
-                      Calendar <ArrowUpRight size={15} />
-                    </button>
-                  </div>
-                  <div className="empty-inline">
-                    <span className="calendar-tile">
-                      <CalendarDays size={22} />
-                    </span>
-                    <div>
-                      <strong>Every release needs context.</strong>
-                      <p>Connect a licensed calendar for upcoming events.</p>
-                    </div>
-                    <span className="outline-tag">NOT CONNECTED</span>
-                  </div>
-                </section>
-                <section className="panel compact-panel approach">
-                  <ShieldCheck size={25} />
-                  <div>
-                    <h3>Discipline is the advantage.</h3>
-                    <p>
-                      Know your risk. Respect your plan.
-                      <br />
-                      Never trade more than you can afford to lose.
-                    </p>
-                  </div>
-                </section>
-              </div>
+              <section
+                className="panel compact-panel approach"
+                style={{ marginTop: 24 }}
+              >
+                <ShieldCheck size={25} />
+                <div>
+                  <h3>Discipline is the advantage.</h3>
+                  <p>
+                    Know your risk. Respect your plan.
+                    <br />
+                    Never trade more than you can afford to lose.
+                  </p>
+                </div>
+              </section>
             </>
           ) : (
             <Section
