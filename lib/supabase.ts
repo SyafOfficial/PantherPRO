@@ -1,5 +1,5 @@
 import "server-only";
-import { authFetch } from "./auth-fetch";
+import { workspaceFetch } from "./workspace-fetch";
 import { verifiedIdentity } from "./verified-identity";
 import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
@@ -20,7 +20,7 @@ export async function supabase() {
     (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
     {
-      global: { fetch: authFetch },
+      global: { fetch: workspaceFetch },
       cookies: {
         getAll: () => store.getAll(),
         setAll: (items) => {

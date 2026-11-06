@@ -1,5 +1,6 @@
 import { authFetch } from "./lib/auth-fetch";
-import { productionIssues } from "./lib/deployment";
+import { authRecovery } from "./lib/auth-recovery";
+import { productionIssues, publicOrigin } from "./lib/deployment";
 import { contentPolicy } from "./lib/content-policy";
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
@@ -11,6 +12,7 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", policy);
   const secure = (response: NextResponse) => {
     response.headers.set("Content-Security-Policy", policy);
+    response.headers.set("Cache-Control", "private, no-store");
     return response;
   };
   if (
@@ -58,8 +60,27 @@ export async function proxy(request: NextRequest) {
       },
     },
   );
-  const { error } = await db.auth.getClaims();
-  if (error && (!error.status || error.status >= 500)) {
+  const { error } = await db.auth
+    .getClaims()
+    .catch(() => ({ error: { status: 503 } }));
+  const recovery = authRecovery(error);
+  if (recovery === "sign_in") {
+    const expired = request.nextUrl.pathname.startsWith("/api/")
+      ? NextResponse.json(
+          { error: "Session expired. Please sign in again." },
+          { status: 401 },
+        )
+      : NextResponse.redirect(
+          new URL(
+            "/login?message=Your+session+expired.+Please+sign+in+again.",
+            publicOrigin(process.env, request.nextUrl.origin),
+          ),
+          303,
+        );
+    for (const cookie of response.cookies.getAll()) expired.cookies.set(cookie);
+    return secure(expired);
+  }
+  if (recovery === "unavailable") {
     const unavailable = request.nextUrl.pathname.startsWith("/api/")
       ? NextResponse.json(
           { error: "Authentication is temporarily unavailable. Please retry." },

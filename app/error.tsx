@@ -6,12 +6,17 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
         <div className="eyebrow">PANTHER FX</div>
         <h1>Connection interrupted.</h1>
         <p>Your workspace could not load. Please retry or reload the app.</p>
-        <button className="primary-button" onClick={reset}>
-          Try again
-        </button>
-        <a className="secondary-button" href="">
-          Reload App
-        </a>
+        <div className="settings-actions">
+          <button className="primary-button" onClick={reset}>
+            Try again
+          </button>
+          <a className="secondary-button" href="">
+            Reload App
+          </a>
+          <a className="secondary-button" href="/login">
+            Return to sign in
+          </a>
+        </div>
       </section>
     </main>
   );

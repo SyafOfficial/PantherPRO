@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import Loading from "../../app/loading";
 test("desktop demo is honest, interactive and error-free", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -537,4 +540,38 @@ test("market sessions show MYT hours, overlaps and weekend closure without imply
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("a streamed loading screen offers recovery after 12 seconds even without JavaScript", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    javaScriptEnabled: false,
+    viewport: { width: 390, height: 844 },
+  });
+  const page = await context.newPage();
+  const loading = renderToStaticMarkup(createElement(Loading));
+  await page.route("**/guide?loading-preview=1", async (route) => {
+    const response = await route.fetch();
+    const body = (await response.text()).replace(
+      /(<body\b[^>]*>)[\s\S]*<\/body>/,
+      (_, opening) => opening + loading + "</body>",
+    );
+    await route.fulfill({ response, body });
+  });
+  await page.goto("/guide?loading-preview=1");
+  await expect(page.locator(".route-loading-brand")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Workspace is taking longer." }),
+  ).toBeVisible({ timeout: 15000 });
+  await expect(page.locator(".route-loading-brand")).toBeHidden();
+  await expect(
+    page.getByRole("link", { name: "Return to sign in", exact: true }),
+  ).toHaveAttribute("href", "/login");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await context.close();
 });

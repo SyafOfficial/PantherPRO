@@ -3513,3 +3513,26 @@ h4 {
     grid-template-columns: 1fr;
   }
 }
+
+/* A streamed route must offer recovery even before JavaScript can hydrate. */
+.route-loading-screen {
+  position: relative;
+}
+.route-loading-brand {
+  animation: launch-dismiss 0s linear 12s forwards;
+}
+.route-loading-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  animation: launch-reveal 0s linear 12s both;
+}
+.route-loading-fallback .auth-card {
+  width: 100%;
+  text-align: center;
+}
+.route-loading-fallback .settings-actions {
+  justify-content: center;
+}
