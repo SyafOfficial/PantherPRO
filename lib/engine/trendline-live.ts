@@ -1,3 +1,4 @@
+import { scanCh } from "./ch";
 import { scanHns } from "./hns";
 import { createHash } from "node:crypto";
 import {
@@ -99,6 +100,7 @@ export function scanLiveAutomatic(raw: unknown, now: number) {
   const hnsKeys = new Set<string>();
   for (const p of [
     ...scanHns(snapshot, now),
+    ...scanCh(snapshot, now),
     ...result.plans.filter((p) => p.method !== "TRENDLINE"),
   ]) {
     const key = `${p.timeframe}:${p.direction}:${p.confirmationOpenedServer}`;

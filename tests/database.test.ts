@@ -3051,3 +3051,85 @@ test("HNS SQL independently validates mirrored and sloped patterns, rejects forg
     await db.close();
   }
 });
+
+test("CH SQL validates independent evidence, publishes atomically and prevents replay", async () => {
+  const { chSnapshot } = await import("./helpers/ch-fixture");
+  const { scanCh } = await import("../lib/engine/ch");
+  const { mt5SnapshotSchema } = await import("../lib/engine/mt5");
+  const db = await setup();
+  try {
+    const now = Date.now() - 10000;
+    for (const buy of [false, true])
+      for (const slope of [0, 0.04]) {
+        const snapshot = mt5SnapshotSchema.parse(chSnapshot(buy, slope, now));
+        const plan = scanCh(snapshot, now)[0];
+        assert.ok(plan);
+        const valid = async (p: unknown, s: unknown = snapshot) =>
+          (
+            await db.query<{ valid: boolean }>(
+              "select public.valid_ch_plan($1,$2) valid",
+              [JSON.stringify(s), JSON.stringify(p)],
+            )
+          ).rows[0].valid;
+        assert.equal(await valid(plan), true, `SQL parity ${buy} ${slope}`);
+        assert.equal(await valid({ ...plan, stop: plan.stop + 1 }), false);
+        assert.equal(await valid({ ...plan, timeframe: "W1" }), false);
+        assert.equal(
+          await valid({
+            ...plan,
+            ch: { ...plan.ch, anchors: [0, ...plan.ch.anchors.slice(1)] },
+          }),
+          false,
+        );
+        const forged = structuredClone(snapshot);
+        const c = forged.series[0].candles.at(-1)!;
+        c.close = c.open;
+        assert.equal(await valid(plan, forged), false);
+      }
+    const snapshot = mt5SnapshotSchema.parse(chSnapshot(false, 0, now));
+    const plan = scanCh(snapshot, now)[0];
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    await assert.rejects(
+      db.query("select public.valid_ch_plan($1,$2)", [
+        JSON.stringify(snapshot),
+        JSON.stringify(plan),
+      ]),
+      /permission denied/,
+    );
+    const at = new Date(Math.floor(now / 1000) * 1000).toISOString();
+    await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(snapshot),
+      "a".repeat(64),
+      at,
+    ]);
+    await assert.rejects(
+      db.query("select public.apply_automatic_engine($1,$2)", [
+        at,
+        JSON.stringify([{ ...plan, stop: plan.stop + 1 }]),
+      ]),
+      /CH break\/retest evidence invalid/,
+    );
+    const apply = async () =>
+      (
+        await db.query<{ result: { published: number } }>(
+          "select public.apply_automatic_engine($1,$2) result",
+          [at, JSON.stringify([plan])],
+        )
+      ).rows[0].result;
+    assert.equal((await apply()).published, 1);
+    assert.equal((await apply()).published, 0);
+    await as(db, "admin");
+    const row = (
+      await db.query<{ strategy: string; stop_loss: string; tp1: string }>(
+        "select strategy,stop_loss,tp1 from public.signals where source='mt5'",
+      )
+    ).rows[0];
+    assert.equal(row.strategy, "CH");
+    assert.equal(Number(row.stop_loss), plan.stop);
+    assert.equal(Number(row.tp1), plan.targets[0]);
+  } finally {
+    await db.close();
+  }
+});
