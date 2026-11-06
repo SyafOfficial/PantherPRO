@@ -67,3 +67,36 @@ test("display refuses mislabeled, wrong-source, reversed and malformed candles r
     displaySnapshot({ ...f, quote: { ...f.quote, ask: 3800 } }, "H1"),
   );
 });
+
+test("daily display selects the appended MT5 D1 series without shifting weekly or monthly data", async () => {
+  const { DISPLAY_FRAMES, frameIndex } = await import("../lib/engine/display");
+  assert.deepEqual(DISPLAY_FRAMES, [
+    "M5",
+    "M15",
+    "M30",
+    "H1",
+    "H4",
+    "D1",
+    "W1",
+    "MN1",
+  ]);
+  const exportedFrames = ["M5", "M15", "M30", "H1", "H4", "W1", "MN1", "D1"];
+  for (const frame of DISPLAY_FRAMES)
+    assert.equal(exportedFrames[frameIndex[frame]], frame);
+  const f = fixture();
+  f.timeframe = "D1";
+  f.candles = f.candles.map((b, i) => ({
+    ...b,
+    opened_at_server_raw: 1000 + i * 86400,
+  }));
+  f.server_time_raw = 1000 + 120 * 86400;
+  f.quote.last_tick_time_raw = f.server_time_raw - 1;
+  const daily = displaySnapshot(f, "D1");
+  assert.equal(daily.timeframe, "D1");
+  assert.equal(daily.bars.length, 100);
+  assert.equal(
+    daily.bars[1].opened_at_server_raw - daily.bars[0].opened_at_server_raw,
+    86400,
+  );
+  assert.throws(() => displaySnapshot({ ...f, timeframe: "W1" }, "D1"));
+});

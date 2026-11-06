@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { MT5Display } from "@/lib/engine/display";
+import { DISPLAY_FRAMES } from "@/lib/engine/display";
 import { marketContext } from "@/lib/market-context";
 import type { OfficialNews } from "@/lib/official-news";
 import { malaysiaTime } from "@/lib/market-data";
@@ -128,7 +129,7 @@ export default function MarketContextPanel({
             value={timeframe}
             onChange={(e) => onTimeframe(e.target.value)}
           >
-            {["M5", "M15", "M30", "H1", "H4", "W1", "MN1"].map((t) => (
+            {DISPLAY_FRAMES.map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>

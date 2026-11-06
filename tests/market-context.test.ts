@@ -59,3 +59,24 @@ test("flat prices have neutral momentum and stale quotes never claim live contex
     "insufficient_history",
   );
 });
+
+test("D1 context derives daily indicators and withholds them when daily history is incomplete", () => {
+  const daily: MT5Display = {
+    ...fixture(),
+    timeframe: "D1",
+    bars: fixture().bars.map((b, i) => ({
+      ...b,
+      opened_at_server_raw: 10000 + i * 86400,
+    })),
+  };
+  const result = marketContext(daily, now);
+  assert.equal(result.timeframe, "D1");
+  assert.equal(result.status, "ready");
+  assert.equal(result.bars, 100);
+  assert.ok(Number.isFinite(result.rsi14));
+  assert.ok(Number.isFinite(result.ema50));
+  assert.equal(
+    marketContext({ ...daily, bars: daily.bars.slice(0, 49) }, now).status,
+    "insufficient_history",
+  );
+});

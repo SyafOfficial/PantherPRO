@@ -11,6 +11,7 @@ import MarketContextPanel, {
   OfficialNewsPanel,
 } from "@/components/market-context";
 import type { MT5Display } from "@/lib/engine/display";
+import { DISPLAY_FRAMES } from "@/lib/engine/display";
 import Link from "next/link";
 import CalendarEvents from "./calendar-events";
 import ForexFactoryCalendarPanel from "./forex-factory-calendar";
@@ -582,18 +583,17 @@ export default function Terminal({
                       )}
                     </div>
                     <div className="segmented">
-                      {(demo
-                        ? ["15M", "1H", "4H", "1D"]
-                        : ["M5", "M15", "M30", "H1", "H4", "W1", "MN1"]
-                      ).map((t) => (
-                        <button
-                          onClick={() => setTimeframe(t)}
-                          className={t === timeframe ? "active" : ""}
-                          key={t}
-                        >
-                          {t}
-                        </button>
-                      ))}
+                      {(demo ? ["15M", "1H", "4H", "1D"] : DISPLAY_FRAMES).map(
+                        (t) => (
+                          <button
+                            onClick={() => setTimeframe(t)}
+                            className={t === timeframe ? "active" : ""}
+                            key={t}
+                          >
+                            {t}
+                          </button>
+                        ),
+                      )}
                     </div>
                   </div>
                   {demo ? (

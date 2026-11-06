@@ -1,12 +1,22 @@
 import { z } from "zod";
-import { TIMEFRAMES } from "../strategy";
-export const DISPLAY_FRAMES = ["M5", ...TIMEFRAMES] as const;
+export const DISPLAY_FRAMES = [
+  "M5",
+  "M15",
+  "M30",
+  "H1",
+  "H4",
+  "D1",
+  "W1",
+  "MN1",
+] as const;
 export const frameIndex = {
   M5: 0,
   M15: 1,
   M30: 2,
   H1: 3,
   H4: 4,
+  // D1 is appended by the exporter; preserve the original weekly/monthly slots.
+  D1: 7,
   W1: 5,
   MN1: 6,
 } as const;
