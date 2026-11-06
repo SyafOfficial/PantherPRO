@@ -18,6 +18,8 @@ import ForexFactoryCalendarPanel from "./forex-factory-calendar";
 import { STRATEGIES, TIMEFRAMES } from "@/lib/strategy";
 import NewsGuide from "./news-guide";
 import NewsRisk from "./news-risk";
+import AdminShortcuts from "./admin-shortcuts";
+import { ownerAdminNavigation } from "@/lib/admin-navigation";
 import IntelligencePanel from "./intelligence-panel";
 import type { IntelligenceBundle } from "@/lib/intelligence/types";
 import {
@@ -325,13 +327,23 @@ export default function Terminal({
               </button>
             );
           })}
+          {ownerAdminNavigation(user) && (
+            <Link
+              href="/admin"
+              className="nav-item"
+              onClick={() => setMobile(false)}
+            >
+              <ShieldCheck size={19} />
+              <span>Admin panel</span>
+            </Link>
+          )}
         </nav>
         <div className="sidebar-bottom">
           <div className="system-state">
             <span className="dot muted-dot" />{" "}
             {demo ? "Demo Workspace" : "Member Workspace"}
           </div>
-          <Link href="/login" className="account">
+          <Link href={user ? "/account" : "/login"} className="account">
             <span className="avatar">{user?.name?.slice(0, 1) || "G"}</span>
             <span>
               {user?.name || "Guest explorer"}
@@ -378,7 +390,11 @@ export default function Terminal({
               <Bell size={19} />
             </button>
             <span className="divider" />
-            <Link className="avatar small" href="/login" aria-label="Account">
+            <Link
+              className="avatar small"
+              href={user ? "/account" : "/login"}
+              aria-label="Account"
+            >
               {user?.name?.slice(0, 1) || "G"}
             </Link>
           </div>
@@ -1177,15 +1193,11 @@ function Section({
           </p>
           <span className="outline-tag">{user?.role || "GUEST"}</span>
           <br />
-          <Link className="primary-button" href="/login">
+          <Link className="primary-button" href={user ? "/account" : "/login"}>
             {user ? "Account settings" : "Sign in / Create account"}
             <LogIn size={16} />
           </Link>
-          {user?.role === "admin" && (
-            <Link href="/admin" className="secondary-button">
-              Open administration
-            </Link>
-          )}
+          <AdminShortcuts user={user} />
         </section>
         <section className="panel content-panel">
           <Bell className="gold" size={28} />

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import NotificationSettings from "@/components/notification-settings";
+import AdminShortcuts from "@/components/admin-shortcuts";
+import { ownerAdminNavigation } from "@/lib/admin-navigation";
 import { identity, isConfigured, supabase } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 export default async function Account() {
@@ -58,7 +60,8 @@ export default async function Account() {
           Change password
         </Link>
       </div>
-      {user && (
+      <AdminShortcuts user={user} />
+      {user && !ownerAdminNavigation(user) && (
         <Link
           href={user.role === "admin" ? "/admin/clients" : "/onboarding"}
           className="secondary-button"
