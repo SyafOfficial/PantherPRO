@@ -1,3 +1,4 @@
+import type { ClientPushDetails } from "./client-push";
 import { z } from "zod";
 export const preferenceSchema = z
   .object({
@@ -64,6 +65,7 @@ export function notificationPayload(
     calendar_event_id?: string | null;
   },
   signal?: PushSignalDetails | null,
+  client?: ClientPushDetails | null,
 ) {
   let title = "Panther FX intelligence";
   let body = "A new update is available. Open your terminal to review it.";
@@ -112,13 +114,24 @@ export function notificationPayload(
   }
   if (delivery.event_type === "client.approved") {
     title = "Client approved";
-    body =
-      "A client met the verified funding requirements. Open your client directory.";
+    body = "A client was approved. Open your client directory.";
   }
   if (delivery.event_type === "client.revoked") {
     title = "Client access revoked";
     body =
       "A client no longer meets the access requirements. Open your client directory to review.";
+  }
+  if (
+    client &&
+    ["client.approved", "client.revoked"].includes(delivery.event_type)
+  ) {
+    const name = client.full_name
+      .replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 100);
+    if (name && /^[1-9][0-9]{3,19}$/.test(client.mt5_login))
+      body = `${name} · MT5 ${client.mt5_login}\n${delivery.event_type === "client.approved" ? "Membership approved." : "Membership access revoked."}`;
   }
   return {
     id: delivery.id,

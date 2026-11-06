@@ -239,6 +239,31 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
     if (eventType === "signal.break_even")
       expect((await notifications())[0].body).toBe("Collect half and Set BE");
   }
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    for (const notification of await registration.getNotifications())
+      notification.close();
+  });
+  await session.send("ServiceWorker.deliverPushMessage", {
+    origin: "http://127.0.0.1:3000",
+    registrationId,
+    data: JSON.stringify({
+      id: "00000000-0000-4000-8000-000000000085",
+      url: "/admin/clients",
+      eventType: "client.approved",
+      title: "Client approved",
+      body: "Fixture Member · MT5 123456\nMembership approved.",
+    }),
+  });
+  await expect
+    .poll(async () => (await notifications())[0]?.title)
+    .toBe("Client approved");
+  expect((await notifications())[0].body).toBe(
+    "Fixture Member · MT5 123456\nMembership approved.",
+  );
+  expect((await notifications())[0].url).toBe(
+    "http://127.0.0.1:3000/admin/clients",
+  );
 });
 
 test("calendar shows an honest empty state and account settings fit a phone", async ({

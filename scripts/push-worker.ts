@@ -1,3 +1,4 @@
+import { clientPushDetails } from "../lib/client-push";
 import { calendarFailure } from "../lib/forex-factory";
 import { runWorkerLoop, createTaskPool } from "../lib/worker-loop";
 import { createCalendarDisplayRefresh } from "../lib/calendar-display-cache";
@@ -200,12 +201,23 @@ async function deliver(item: Delivery) {
         return;
       }
     }
+    const client = await clientPushDetails(db, item.outbox_id, item.event_type);
+    if (
+      item.event_type.startsWith("client.") &&
+      !(await rpc("notification_allowed", {
+        event_id: item.outbox_id,
+        device_id: item.subscription_id,
+      }))
+    ) {
+      await finish(item, "skipped", "no_longer_eligible");
+      return;
+    }
     await webpush.sendNotification(
       {
         endpoint: item.endpoint,
         keys: { p256dh: item.p256dh, auth: item.auth },
       },
-      JSON.stringify(notificationPayload(item, signal)),
+      JSON.stringify(notificationPayload(item, signal, client)),
       {
         TTL: 300,
         urgency: item.event_type.startsWith("signal.") ? "high" : "normal",

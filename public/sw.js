@@ -155,7 +155,20 @@ self.addEventListener("push", (event) => {
           ["Price running 50 pips!", "Collect half and Set BE"],
         ],
       ]);
+      const clientCopy =
+        ["client.approved", "client.revoked"].includes(payload.eventType) &&
+        url.pathname === "/admin/clients" &&
+        payload.title ===
+          (payload.eventType === "client.approved"
+            ? "Client approved"
+            : "Client access revoked") &&
+        typeof payload.body === "string" &&
+        payload.body.length > 0 &&
+        payload.body.length <= 400
+          ? [payload.title, payload.body]
+          : null;
       const copy =
+        clientCopy ??
         progressCopies.get(payload.eventType) ??
         (payload.eventType === "signal.active"
           ? typeof payload.title === "string" &&
