@@ -101,11 +101,15 @@ export function OfficialNewsPanel() {
 export default function MarketContextPanel({
   data,
   fresh,
+  loading = false,
+  failed = false,
   timeframe,
   onTimeframe,
 }: {
   data: MT5Display | null;
   fresh: boolean;
+  loading?: boolean;
+  failed?: boolean;
   timeframe: string;
   onTimeframe: (frame: string) => void;
 }) {
@@ -119,7 +123,15 @@ export default function MarketContextPanel({
         <div className="section-title">
           <h2>XAUUSD · Market context</h2>
           <span className="outline-tag">
-            {data ? (fresh ? "LIVE MARKET" : "STALE DATA") : "CONNECTING"}
+            {loading
+              ? "UPDATING"
+              : data
+                ? fresh
+                  ? "LIVE MARKET"
+                  : "STALE DATA"
+                : failed
+                  ? "UNAVAILABLE"
+                  : "CONNECTING"}
           </span>
         </div>
         <label>
@@ -135,12 +147,23 @@ export default function MarketContextPanel({
           </select>
         </label>
         <p>Market structure for your selected timeframe.</p>
+        {data && (loading || failed) && (
+          <p className="chart-feed-note" role="status">
+            {loading
+              ? `Updating ${timeframe} analysis…`
+              : "Refresh unavailable · showing the last received chart."}
+          </p>
+        )}
         {data ? (
           <>
             <MT5Chart data={data} fresh={fresh} />
           </>
         ) : (
-          <p>Market history is currently unavailable.</p>
+          <p role="status">
+            {loading
+              ? `Loading ${timeframe} chart and analysis…`
+              : "Market history is currently unavailable. Retrying automatically."}
+          </p>
         )}
       </section>
       <div className="three-grid market-analysis-grid">
@@ -201,7 +224,13 @@ export default function MarketContextPanel({
               </small>
             </>
           ) : (
-            <p>At least 50 completed candles are required.</p>
+            <p>
+              {loading && !data
+                ? `Loading ${timeframe} indicators…`
+                : !data
+                  ? "Timeframe data is unavailable. Retrying automatically."
+                  : "At least 50 completed candles are required."}
+            </p>
           )}
         </section>
         <section className="panel content-panel">
@@ -232,7 +261,13 @@ export default function MarketContextPanel({
               </small>
             </>
           ) : (
-            <p>Insufficient market history for confirmed levels.</p>
+            <p>
+              {loading && !data
+                ? `Loading ${timeframe} levels…`
+                : !data
+                  ? "Timeframe data is unavailable. Retrying automatically."
+                  : "Insufficient market history for confirmed levels."}
+            </p>
           )}
         </section>
       </div>

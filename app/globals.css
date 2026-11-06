@@ -3536,3 +3536,10 @@ h4 {
 .route-loading-fallback .settings-actions {
   justify-content: center;
 }
+
+.chart-feed-note {
+  margin: 12px 0 0;
+  color: var(--gold);
+  font-size: 11px;
+  line-height: 1.65;
+}

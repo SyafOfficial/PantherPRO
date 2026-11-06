@@ -20,6 +20,7 @@ import NewsGuide from "./news-guide";
 import NewsRisk from "./news-risk";
 import AdminShortcuts from "./admin-shortcuts";
 import MarketSessions from "./market-sessions";
+import { useMT5Feed } from "./use-mt5-feed";
 import { ownerAdminNavigation } from "@/lib/admin-navigation";
 import IntelligencePanel from "./intelligence-panel";
 import type { IntelligenceBundle } from "@/lib/intelligence/types";
@@ -64,7 +65,7 @@ const sections = [
 const icons = [Layers3, ChartNoAxesCombined, Sparkles, CalendarDays, UserRound];
 type Props = {
   mode: "demo" | "connected";
-  user: { name: string; role: string; email?: string } | null;
+  user: { id?: string; name: string; role: string; email?: string } | null;
   signals: Record<string, unknown>[];
   dailySummary?: DailySignalSummary | null;
   recentPage?: number;
@@ -136,11 +137,23 @@ export default function Terminal({
     clock >= Date.parse(intelligence.technical.valid_until)
       ? "insufficient_data"
       : intelligence.technical.bias;
-  const [mt5, setMt5] = useState<MT5Display | null>(null);
-  const [mt5Error, setMt5Error] = useState(false);
-  const quote = mt5?.quote ?? market.quote;
-  const fresh = quote
-    ? quoteFreshness(quote, clock) && (!mt5 || !mt5Error)
+  const [view, setView] = useState("Signals"),
+    [mobile, setMobile] = useState(false),
+    [timeframe, setTimeframe] = useState(mode === "demo" ? "1H" : "H1"),
+    [notice, setNotice] = useState(false);
+  const chartOwner =
+    mode === "connected" && user ? (user.id ?? user.email ?? null) : null;
+  const {
+    data: mt5,
+    latestQuote,
+    loading: mt5Loading,
+    error: mt5Error,
+    accessDenied,
+  } = useMT5Feed(chartOwner, timeframe);
+  const quote = accessDenied ? null : (latestQuote ?? market.quote);
+  const fresh = quote ? quoteFreshness(quote, clock) : false;
+  const chartFresh = mt5
+    ? quoteFreshness(mt5.quote, clock) && !mt5Error
     : false;
   const quoteValue = quote
     ? Number(quote.bid).toLocaleString("en-US", {
@@ -213,56 +226,6 @@ export default function Terminal({
         .getElementById(`signal-${signal}`)
         ?.scrollIntoView({ block: "center" });
   }, [signals]);
-  const [view, setView] = useState("Signals"),
-    [mobile, setMobile] = useState(false),
-    [timeframe, setTimeframe] = useState(mode === "demo" ? "1H" : "H1"),
-    [notice, setNotice] = useState(false);
-  useEffect(() => {
-    if (mode !== "connected" || !user) {
-      setMt5(null);
-      return;
-    }
-    let stopped = false;
-    let controller: AbortController | null = null;
-    const poll = async () => {
-      if (document.visibilityState === "hidden") {
-        timer = setTimeout(poll, 2000);
-        return;
-      }
-      const startedAt = Date.now();
-      controller = new AbortController();
-      const timeout = setTimeout(() => controller?.abort(), 8000);
-      try {
-        const response = await fetch(
-          `/api/market/mt5?timeframe=${encodeURIComponent(timeframe)}`,
-          { cache: "no-store", signal: controller.signal },
-        );
-        if (!response.ok) throw new Error("feed unavailable");
-        const data = await response.json();
-        if (!stopped) {
-          setMt5(data);
-          setMt5Error(false);
-        }
-      } catch {
-        if (!stopped) setMt5Error(true);
-      } finally {
-        clearTimeout(timeout);
-      }
-      if (!stopped)
-        timer = setTimeout(
-          poll,
-          Math.max(250, 2000 - (Date.now() - startedAt)),
-        );
-    };
-    let timer: ReturnType<typeof setTimeout>;
-    setMt5(null);
-    void poll();
-    return () => {
-      stopped = true;
-      controller?.abort();
-      clearTimeout(timer);
-    };
-  }, [mode, user?.email, timeframe]);
   const demo = mode === "demo";
   const all = demo
     ? samples
@@ -560,7 +523,15 @@ export default function Terminal({
                         <p>
                           {demo
                             ? "Illustrative market structure"
-                            : "Market data unavailable"}{" "}
+                            : mt5Loading
+                              ? `Loading ${timeframe} chart`
+                              : mt5
+                                ? chartFresh
+                                  ? "Live market data"
+                                  : "Last received market data"
+                                : mt5Error
+                                  ? "Chart data unavailable"
+                                  : "Connecting to market"}{" "}
                           <span>·</span> {timeframe} timeframe
                         </p>
                       </div>
@@ -614,24 +585,33 @@ export default function Terminal({
                       )}
                     </div>
                   </div>
+                  {!demo && mt5 && (mt5Loading || mt5Error) && (
+                    <p className="chart-feed-note" role="status">
+                      {mt5Loading
+                        ? `Updating ${timeframe} chart…`
+                        : "Refresh unavailable · showing the last received chart."}
+                    </p>
+                  )}
                   {demo ? (
                     <Chart timeframe={timeframe} />
                   ) : mt5 ? (
-                    <MT5Chart data={mt5} fresh={fresh && !mt5Error} />
+                    <MT5Chart data={mt5} fresh={chartFresh} />
                   ) : (
                     <div className="chart-empty">
                       <ChartNoAxesCombined />
                       <h3>
-                        {quote
-                          ? "Chart Unavailable"
-                          : mt5Error
-                            ? "Market Unavailable"
-                            : "Connecting to Market"}
+                        {mt5Loading
+                          ? `Loading ${timeframe} chart…`
+                          : accessDenied
+                            ? "Account verification required"
+                            : "Chart unavailable"}
                       </h3>
                       <p>
-                        {quote
-                          ? `Bid ${quote.bid} / Ask ${quote.ask}. Chart history is unavailable.`
-                          : "Your market view will appear when data is available."}
+                        {mt5Loading
+                          ? "Fetching completed candles for your selected timeframe."
+                          : accessDenied
+                            ? "Sign in or check your membership to continue."
+                            : "The chart request failed. Retrying automatically."}
                       </p>
                     </div>
                   )}
@@ -642,7 +622,7 @@ export default function Terminal({
                     </span>
                     <span>
                       {mt5
-                        ? `${fresh && !mt5Error ? "" : "Stale · "}Bid ${mt5.quote.bid.toFixed(2)} / Ask ${mt5.quote.ask.toFixed(2)}`
+                        ? `${chartFresh ? "" : "Stale · "}Bid ${mt5.quote.bid.toFixed(2)} / Ask ${mt5.quote.ask.toFixed(2)}`
                         : "Awaiting Market Data"}
                     </span>
                   </div>
@@ -797,7 +777,9 @@ export default function Terminal({
               events={market.events}
               intelligence={intelligence}
               mt5={mt5}
-              marketFresh={fresh && !mt5Error}
+              marketFresh={chartFresh}
+              chartLoading={mt5Loading}
+              chartError={mt5Error}
               chartTimeframe={timeframe}
               onChartTimeframe={setTimeframe}
             />
@@ -1160,11 +1142,15 @@ function Section({
   intelligence,
   mt5,
   marketFresh,
+  chartLoading,
+  chartError,
   chartTimeframe,
   onChartTimeframe,
 }: {
   mt5: MT5Display | null;
   marketFresh: boolean;
+  chartLoading: boolean;
+  chartError: boolean;
   chartTimeframe: string;
   onChartTimeframe: (frame: string) => void;
   view: string;
@@ -1179,6 +1165,8 @@ function Section({
       <MarketContextPanel
         data={mt5}
         fresh={marketFresh}
+        loading={chartLoading}
+        failed={chartError}
         timeframe={chartTimeframe}
         onTimeframe={onChartTimeframe}
       />

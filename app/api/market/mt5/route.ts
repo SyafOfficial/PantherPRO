@@ -1,6 +1,7 @@
 import { clientAccessAllowed } from "@/lib/clients/access";
 import { isConfigured, supabase } from "@/lib/supabase";
 import { serviceDb } from "@/lib/service-db";
+import { authRecovery } from "@/lib/auth-recovery";
 import {
   DISPLAY_FRAMES,
   frameIndex,
@@ -20,12 +21,26 @@ export async function GET(request: Request) {
     data: { user },
     error: authError,
   } = await db.auth.getUser();
+  if (authError && authRecovery(authError) === "unavailable")
+    return Response.json(
+      { error: "Authentication is temporarily unavailable. Retrying is safe." },
+      { status: 503, headers },
+    );
   if (authError || !user)
     return Response.json(
       { error: "Sign in required" },
       { status: 401, headers },
     );
-  if (!(await clientAccessAllowed()))
+  let allowed: boolean;
+  try {
+    allowed = await clientAccessAllowed();
+  } catch {
+    return Response.json(
+      { error: "Membership verification is temporarily unavailable" },
+      { status: 503, headers },
+    );
+  }
+  if (!allowed)
     return Response.json(
       { error: "Membership verification required" },
       { status: 403, headers },
