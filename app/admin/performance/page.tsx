@@ -124,8 +124,8 @@ export default async function Performance({
           <div className="performance-stats">
             {[
               ["Total Signals", s.signals],
-              ["Win Rate", s.win_rate === null ? "—" : `${s.win_rate}%`],
-              ["Wins / Losses", `${s.wins} / ${s.losses}`],
+              ["Setup Win Rate", s.win_rate === null ? "—" : `${s.win_rate}%`],
+              ["Setup Wins / Losses", `${s.wins} / ${s.losses}`],
               ["BE Exits", s.be],
               ["Total Signal Pips", pips(s.total_pips)],
               ["TP Pips", pips(s.tp_pips)],
@@ -139,9 +139,8 @@ export default async function Performance({
             ))}
           </div>
           <p className="performance-note">
-            Highest TP Per Signal · TP1+ = Win · SL Without TP = Loss · BE
-            Separate. Running +50 Is Provisional And Replaced By The Final
-            Outcome. Signal Pips Use 0.10 Per Pip; They Are Not Account Profit.
+            Win: +50 pips or any TP. A later BE keeps the setup win. Pips
+            reflect the exit outcome, not account profit.
           </p>
           <p>
             {s.active} Active · {s.closed} Closed · {s.unclassified}{" "}
@@ -158,8 +157,8 @@ export default async function Performance({
                       "Strategy",
                       "Setup / Higher TF",
                       "Signals",
-                      "Win / Loss / BE",
-                      "Win Rate",
+                      "Setup Wins / Losses / BE",
+                      "Setup Win Rate",
                       "TP1 / TP2 / TP3",
                       "SL Hits",
                       "TP Pips",
@@ -267,6 +266,7 @@ export default async function Performance({
                       </td>
                       <td>
                         {r.outcome}
+                        {r.setup_win && <small>Setup win</small>}
                         <small>{r.status}</small>
                       </td>
                       <td>{pips(r.total_pips)}</td>

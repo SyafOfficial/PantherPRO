@@ -2136,7 +2136,8 @@ test("admin performance counts highest TP once, replaces running, protects acces
     await as(db, "admin");
     r = await report();
     assert.equal(r.summary.running_pips, 50);
-    assert.equal(r.summary.wins, 0);
+    assert.equal(r.summary.wins, 1);
+    assert.equal(r.summary.win_rate, 100);
     await db.exec("reset role");
     await db.query("update public.signals set tp1_hit_at=now() where id=$1", [
       id,
@@ -2900,6 +2901,68 @@ test("connection corrections retain approval clocks, reject stale/revoked change
           ],
         )
       ).rows[0].ok,
+      false,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("setup win rate counts recorded 50 pips or TP once and retains wins after BE", async () => {
+  const db = await setup();
+  try {
+    await db.exec("reset role");
+    const states = [
+      ["closed", true, true, false, false],
+      ["active", true, false, false, false],
+      ["closed", false, false, true, false],
+      ["closed", false, false, false, true],
+      ["closed", false, true, false, false],
+      ["active", false, false, false, false],
+    ];
+    const ids: string[] = [];
+    for (const row of states) {
+      const inserted = await db.query<{ id: string }>(
+        `insert into public.signal_performance_ledger
+        (id,published_at,direction,entry,stop_loss,tp1,tp2,tp3,status,strategy,timeframe,be_alert,be_exit_at,tp1_hit_at,sl_hit_at)
+        values(gen_random_uuid(),now(),'SELL',2000,2010,1990,1980,1970,$1,'TRENDLINE','H1',$2,
+        case when $3 then now() end,case when $4 then now() end,case when $5 then now() end) returning id`,
+        row,
+      );
+      ids.push(inserted.rows[0].id);
+    }
+    await as(db, "admin");
+    const report = async () =>
+      (
+        await db.query<{ r: any }>(
+          "select public.get_admin_signal_performance(now()-interval '1 day',now()+interval '1 day') r",
+        )
+      ).rows[0].r;
+    const first = await report();
+    assert.equal(first.win_rate_basis, "50_pips_or_any_tp");
+    assert.equal(first.summary.wins, 3);
+    assert.equal(first.summary.losses, 1);
+    assert.equal(first.summary.win_rate, 75);
+    assert.equal(first.by_setup[0].win_rate, 75);
+    assert.equal(first.signals.find((s: any) => s.id === ids[0]).outcome, "BE");
+    assert.equal(
+      first.signals.find((s: any) => s.id === ids[0]).setup_win,
+      true,
+    );
+    assert.equal(first.signals.find((s: any) => s.id === ids[0]).total_pips, 0);
+    await db.exec("reset role");
+    await db.query(
+      "update public.signal_performance_ledger set status='closed',closed_at=now(),be_exit_at=now() where id=$1",
+      [ids[1]],
+    );
+    await as(db, "admin");
+    const final = await report();
+    assert.equal(final.summary.wins, 3);
+    assert.equal(final.summary.win_rate, 75);
+    assert.equal(final.summary.running_pips, 0);
+    assert.equal(final.summary.total_pips, 0);
+    assert.equal(
+      final.signals.find((s: any) => s.id === ids[4]).setup_win,
       false,
     );
   } finally {

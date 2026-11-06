@@ -68,6 +68,7 @@ export type SignalPerformance = {
   be_exit_at: string | null;
   monitoring_gap: boolean;
   outcome: string;
+  setup_win: boolean;
   highest_tp: number;
   total_pips: number;
 };
