@@ -7,20 +7,30 @@ export async function runWorkerLoop(
     once: boolean;
     stopped: () => boolean;
     onError: () => void;
+    wait?: (ms: number) => Promise<void>;
   },
 ) {
+  let failures = 0;
   while (!options.stopped()) {
     let delay = options.idleMs;
     try {
       const count = await job();
+      failures = 0;
       if (count) delay = options.busyMs ?? delay;
     } catch {
       options.onError();
-      delay = Math.max(1000, options.idleMs);
+      failures++;
+      delay = Math.min(
+        30000,
+        Math.max(1000, options.idleMs) * 2 ** Math.min(failures - 1, 5),
+      );
       if (options.once) process.exitCode = 1;
     }
     if (options.once || options.stopped()) break;
-    await new Promise((resolve) => setTimeout(resolve, delay));
+    await (
+      options.wait ??
+      ((ms) => new Promise((resolve) => setTimeout(resolve, ms)))
+    )(delay);
   }
 }
 export async function forEachConcurrent<T>(

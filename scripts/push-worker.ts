@@ -1,3 +1,5 @@
+import { serviceFetch } from "../lib/service-fetch";
+import { createEngineRunner } from "../lib/engine/cycle-runner";
 import { clientPushDetails } from "../lib/client-push";
 import { calendarFailure } from "../lib/forex-factory";
 import { runWorkerLoop, createTaskPool } from "../lib/worker-loop";
@@ -35,7 +37,10 @@ webpush.setVapidDetails(
 const db = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false } },
+  {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { fetch: serviceFetch },
+  },
 );
 type Delivery = {
   id: string;
@@ -127,9 +132,10 @@ async function backgroundCycle() {
     );
   }
 }
+const runEngine = createEngineRunner(db, () => automaticEngineCycle(db));
 async function engineCycle() {
   try {
-    const engine = await automaticEngineCycle(db);
+    const engine = await runEngine();
     if (
       engine.published ||
       engine.events ||
@@ -149,6 +155,7 @@ async function engineCycle() {
     console.error(
       "Automatic engine cycle rejected; existing push delivery continues.",
     );
+    throw new Error("Engine backend unavailable");
   }
 }
 let deliveryFailures = 0;

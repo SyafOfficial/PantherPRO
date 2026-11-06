@@ -124,3 +124,24 @@ test("failed sends release capacity for later events and are reported once", asy
   await pool.drain();
   assert.equal(sent, true);
 });
+
+test("backend failures back off progressively and success restores the normal polling rate", async () => {
+  const delays: number[] = [];
+  let call = 0;
+  await runWorkerLoop(
+    async () => {
+      call++;
+      if (call <= 6 || call === 8) throw new Error("Database unavailable");
+    },
+    {
+      idleMs: 250,
+      once: false,
+      stopped: () => call >= 9,
+      onError: () => {},
+      wait: async (ms) => {
+        delays.push(ms);
+      },
+    },
+  );
+  assert.deepEqual(delays, [1000, 2000, 4000, 8000, 16000, 30000, 250, 1000]);
+});
