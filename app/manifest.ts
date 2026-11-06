@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     start_url: "/",
     shortcuts: [
-      { name: "Signals", url: "/?view=Signals" },
-      { name: "News calendar", url: "/?view=Economic%20Calendar" },
+      { name: "Signals", url: "/dashboard?view=Signals" },
+      { name: "News calendar", url: "/dashboard?view=Economic%20Calendar" },
       { name: "Notifications", url: "/account" },
     ],
     display: "standalone",

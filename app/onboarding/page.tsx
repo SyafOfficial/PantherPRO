@@ -65,7 +65,7 @@ export default async function Onboarding({
               </p>
             </div>
             {application.status === "approved" && (
-              <Link href="/" className="primary-button">
+              <Link href="/dashboard" className="primary-button">
                 Enter your workspace →
               </Link>
             )}

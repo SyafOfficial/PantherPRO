@@ -721,7 +721,7 @@ export default function Terminal({
                     {recentPage > 0 && (
                       <Link
                         className="secondary-button"
-                        href={`/?recentPage=${recentPage - 1}#signal-desk`}
+                        href={`/dashboard?recentPage=${recentPage - 1}#signal-desk`}
                       >
                         ← Newer Signals
                       </Link>
@@ -729,7 +729,7 @@ export default function Terminal({
                     {hasMoreRecent && (
                       <Link
                         className="secondary-button"
-                        href={`/?recentPage=${recentPage + 1}#signal-desk`}
+                        href={`/dashboard?recentPage=${recentPage + 1}#signal-desk`}
                       >
                         Older Signals →
                       </Link>

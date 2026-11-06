@@ -123,7 +123,7 @@ export default async function Login({
           </p>
         </>
         <Link href="/" className="secondary-button">
-          Return to terminal
+          Return to homepage
         </Link>
       </section>
     </main>

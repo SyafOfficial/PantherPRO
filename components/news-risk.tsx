@@ -32,7 +32,7 @@ export default function NewsRisk({
       )}
       {risk.events.map((event) => (
         <a
-          href={`/?view=Economic%20Calendar&event=${event.id}`}
+          href={`/dashboard?view=Economic%20Calendar&event=${event.id}`}
           className="news-risk-event"
           key={event.id}
         >

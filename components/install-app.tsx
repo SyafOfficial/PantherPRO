@@ -180,7 +180,7 @@ export default function InstallApp() {
           Notification preferences <Bell size={15} />
         </Link>
       </section>
-      <Link className="secondary-button" href="/">
+      <Link className="secondary-button" href="/dashboard">
         Open signal terminal →
       </Link>
     </main>

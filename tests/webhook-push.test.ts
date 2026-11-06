@@ -114,7 +114,7 @@ test("push payloads use stable delivery IDs and expose no signal details", () =>
   const notification = notificationPayload(delivery);
   assert.equal(notification.id, delivery.id);
   assert.equal(notification.tag, "panther-delivery-id");
-  assert.equal(notification.url, "/?view=Signals&signal=signal-id");
+  assert.equal(notification.url, "/dashboard?view=Signals&signal=signal-id");
   assert.equal("entry" in notification, false);
   assert.equal(retryDelay(1), 30);
   assert.equal(retryDelay(5), 480);

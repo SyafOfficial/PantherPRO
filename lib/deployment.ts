@@ -81,5 +81,5 @@ export function productionIssues(config: Record<string, string | undefined>) {
   return errors;
 }
 export function safeAuthNext(value: string | null) {
-  return value === "/account/password" ? value : "/";
+  return value === "/account/password" ? value : "/dashboard";
 }

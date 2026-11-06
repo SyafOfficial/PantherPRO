@@ -5,10 +5,11 @@ for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     for (const route of [
       "/",
-      "/?view=Market%20Analysis",
-      "/?view=AI%20Intelligence",
-      "/?view=Economic%20Calendar",
-      "/?view=Profile%20%26%20Notifications",
+      "/dashboard",
+      "/dashboard?view=Market%20Analysis",
+      "/dashboard?view=AI%20Intelligence",
+      "/dashboard?view=Economic%20Calendar",
+      "/dashboard?view=Profile%20%26%20Notifications",
       "/account",
       "/admin",
       "/login",
@@ -21,6 +22,8 @@ for (const width of [320, 390, 768, 1440]) {
         if (document.documentElement.scrollWidth > innerWidth + 1)
           problems.push("Page overflows horizontally");
         for (const selector of [
+          ".welcome-header",
+          ".welcome-actions",
           ".settings-actions",
           ".admin-actions",
           ".chart-toolbar",

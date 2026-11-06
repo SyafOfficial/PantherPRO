@@ -28,7 +28,7 @@ export default async function Account() {
     : null;
   return (
     <main className="account-page">
-      <Link href="/" className="text-button">
+      <Link href="/dashboard" className="text-button">
         ← Return to terminal
       </Link>
       <div className="page-heading">

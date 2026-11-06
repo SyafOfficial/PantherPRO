@@ -42,7 +42,7 @@ test("recovery redirects allow only the fixed password page", () => {
     "/admin",
     "/%2f%2funtrusted.example",
   ])
-    assert.equal(safeAuthNext(value), "/");
+    assert.equal(safeAuthNext(value), "/dashboard");
 });
 test("VAPID readiness verifies the actual public/private pairing without printing keys", () => {
   const first = webpush.generateVAPIDKeys(),

@@ -6,7 +6,7 @@ test("desktop demo is honest, interactive and error-free", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1440, height: 1100 });
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(
     page.getByRole("heading", { name: "Precision starts with perspective." }),
   ).toBeVisible();
@@ -42,7 +42,7 @@ test("desktop demo is honest, interactive and error-free", async ({ page }) => {
 });
 test("phone navigation works without horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(
     page.getByRole("navigation", { name: "Mobile navigation" }),
   ).toBeVisible();
@@ -165,7 +165,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
     }
   });
   await session.send("ServiceWorker.enable");
-  await page.goto("/");
+  await page.goto("/dashboard");
   await page.evaluate(async () => {
     await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
@@ -210,7 +210,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
   expect((await notifications()).length).toBe(0);
   await send(
     "00000000-0000-4000-8000-000000000079",
-    "/?view=Signals",
+    "/dashboard?view=Signals",
     "signal.active",
   );
   await expect.poll(async () => (await notifications()).length).toBe(1);
@@ -230,7 +230,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
     });
     await send(
       `00000000-0000-4000-8000-0000000000${index}`,
-      "/?view=Signals",
+      "/dashboard?view=Signals",
       eventType,
     );
     await expect
@@ -245,7 +245,7 @@ test("calendar shows an honest empty state and account settings fit a phone", as
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?view=Economic%20Calendar");
+  await page.goto("/dashboard?view=Economic%20Calendar");
   await expect(
     page.getByRole("heading", { name: "Awaiting licensed calendar data" }),
   ).toBeVisible();
@@ -269,7 +269,7 @@ test("intelligence modes expose missing evidence and cannot fabricate a connecte
   request,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/?view=AI%20Intelligence");
+  await page.goto("/dashboard?view=AI%20Intelligence");
   const technical = page.getByRole("article", {
     name: "Technical analysis report",
   });
@@ -321,7 +321,7 @@ test("phone install guidance, method filters and macro education work without fa
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(
     page.getByRole("region", { name: "XAUUSD signal news risk" }),
   ).toContainText("News risk cannot be verified");
@@ -336,7 +336,7 @@ test("phone install guidance, method filters and macro education work without fa
   await expect(
     page.getByRole("heading", { name: "No signals in this view" }),
   ).toBeVisible();
-  await page.goto("/?view=Economic%20Calendar");
+  await page.goto("/dashboard?view=Economic%20Calendar");
   await page
     .getByText("News context & official releases", { exact: true })
     .click();
@@ -438,14 +438,14 @@ test("production script nonces are unique and unsigned script injection is block
   expect(a.split(";").find((v) => v.includes("script-src"))).not.toContain(
     "unsafe-inline",
   );
-  await page.goto("/");
+  await page.goto("/dashboard");
   const scriptNonces = await page
     .locator("script")
     .evaluateAll((scripts) =>
       scripts.map((s) => (s as HTMLScriptElement).nonce).filter(Boolean),
     );
   expect(scriptNonces.length).toBeGreaterThan(0);
-  await page.route("**/", async (route) => {
+  await page.route("**/dashboard", async (route) => {
     const response = await route.fetch();
     const body = (await response.text()).replace(
       "<head>",
@@ -453,7 +453,7 @@ test("production script nonces are unique and unsigned script injection is block
     );
     await route.fulfill({ response, body });
   });
-  await page.goto("/");
+  await page.goto("/dashboard");
   const executed = await page.evaluate(() =>
     Boolean(
       (window as unknown as { __unsignedExecuted?: boolean })
@@ -518,7 +518,7 @@ test("market sessions show MYT hours, overlaps and weekend closure without imply
 }) => {
   await page.clock.setFixedTime(new Date("2026-11-06T13:30:00Z"));
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/dashboard");
   const sessions = page.getByRole("region", {
     name: "Market sessions",
     exact: true,

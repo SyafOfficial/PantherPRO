@@ -10,7 +10,7 @@ async function admin() {
   return supabase();
 }
 function result(error: boolean) {
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/admin");
   redirect(
     "/admin?message=" +

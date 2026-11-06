@@ -94,7 +94,7 @@ export default async function Admin({
             <small>ADMINISTRATION</small>
           </span>
         </Link>
-        <Link href="/" className="secondary-button">
+        <Link href="/dashboard" className="secondary-button">
           Client terminal →
         </Link>
       </header>

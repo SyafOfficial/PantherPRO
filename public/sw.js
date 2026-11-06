@@ -129,9 +129,13 @@ self.addEventListener("push", (event) => {
       );
       if (
         url.origin !== self.location.origin ||
-        !["/", "/account", "/admin/clients"].includes(url.pathname)
+        !["/", "/dashboard", "/account", "/admin/clients"].includes(
+          url.pathname,
+        )
       )
         return;
+      if (url.pathname === "/" && url.searchParams.has("view"))
+        url.pathname = "/dashboard";
       if (!(await firstDelivery(payload.id))) return;
       const progressCopies = new Map([
         ["signal.be_hit", ["Our setup HIT BE!", "Ready next zone"]],
@@ -207,9 +211,13 @@ self.addEventListener("notificationclick", (event) => {
       );
       if (
         url.origin !== self.location.origin ||
-        !["/", "/account", "/admin/clients"].includes(url.pathname)
+        !["/", "/dashboard", "/account", "/admin/clients"].includes(
+          url.pathname,
+        )
       )
         return;
+      if (url.pathname === "/" && url.searchParams.has("view"))
+        url.pathname = "/dashboard";
       const windows = await self.clients.matchAll({
         type: "window",
         includeUncontrolled: true,

@@ -44,7 +44,7 @@ export async function authenticate(form: FormData) {
   if (error) message(authFailureMessage(error, "login"));
   const user = await identity();
   if (user?.role === "admin") redirect("/account/security");
-  redirect("/");
+  redirect("/dashboard");
 }
 export async function signOut() {
   if (isConfigured()) {

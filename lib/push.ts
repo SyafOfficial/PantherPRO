@@ -129,9 +129,9 @@ export function notificationPayload(
     url: delivery.event_type.startsWith("client.")
       ? "/admin/clients"
       : delivery.signal_id
-        ? `/?view=Signals&signal=${encodeURIComponent(delivery.signal_id)}`
+        ? `/dashboard?view=Signals&signal=${encodeURIComponent(delivery.signal_id)}`
         : delivery.event_type.startsWith("news.")
-          ? `/?view=Economic%20Calendar${delivery.calendar_event_id ? `&event=${encodeURIComponent(delivery.calendar_event_id)}` : ""}`
+          ? `/dashboard?view=Economic%20Calendar${delivery.calendar_event_id ? `&event=${encodeURIComponent(delivery.calendar_event_id)}` : ""}`
           : "/account#announcements",
     tag: `panther-${delivery.id}`,
   };

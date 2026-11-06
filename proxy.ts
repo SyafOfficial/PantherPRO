@@ -37,7 +37,7 @@ export async function proxy(request: NextRequest) {
     )
   )
     return secure(response);
-  if (["/api/health", "/login"].includes(request.nextUrl.pathname))
+  if (["/", "/api/health", "/login"].includes(request.nextUrl.pathname))
     return secure(response);
   const db = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
