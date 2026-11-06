@@ -8,25 +8,22 @@ for (const width of [320, 390, 768, 1440]) {
     await page.goto("/");
     await expect(page.locator(".app-launch-screen")).toBeHidden();
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
-      "A clearer view.",
+      "Welcome.",
     );
-    await expect(page.locator(".chart-toolbar")).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Begin your membership" }),
+      page.locator(
+        ".chart-toolbar, .welcome-page p, .welcome-page svg, .welcome-page footer",
+      ),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("link", { name: "Register", exact: true }),
     ).toHaveAttribute("href", "/login?mode=signup");
     if (width === 390 || width === 1440)
       await page.screenshot({
         path: `/tmp/panther-home-${width}.png`,
         fullPage: true,
       });
-    if (width >= 768) {
-      const brand = await page.locator(".welcome-header .brand").boundingBox();
-      const nav = await page.locator(".welcome-header nav").boundingBox();
-      expect(
-        Math.abs(brand!.y + brand!.height / 2 - nav!.y - nav!.height / 2),
-      ).toBeLessThan(2);
-    }
-    const controls = page.locator(".welcome-hero-actions a");
+    const controls = page.locator(".welcome-actions a");
     const first = await controls.nth(0).boundingBox();
     const second = await controls.nth(1).boundingBox();
     expect(first!.height).toBeGreaterThanOrEqual(44);
@@ -40,7 +37,7 @@ for (const width of [320, 390, 768, 1440]) {
         () => document.documentElement.scrollWidth <= innerWidth + 1,
       ),
     ).toBeTruthy();
-    await page.getByRole("link", { name: "Member login", exact: true }).click();
+    await page.getByRole("link", { name: "Log in", exact: true }).click();
     await expect(page).toHaveURL(/\/login$/);
     await page.getByRole("link", { name: "Return to homepage" }).click();
     await expect(page).toHaveURL(/\/$/);
