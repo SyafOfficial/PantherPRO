@@ -3373,3 +3373,143 @@ h4 {
 .admin-actions:not(:empty) + .content-panel {
   margin-top: 24px;
 }
+
+/* Session schedules share the terminal's restrained dark and gold palette. */
+.market-sessions {
+  padding: var(--space-panel);
+  margin-bottom: 24px;
+}
+.market-sessions .section-title h2 {
+  font-size: 15px;
+}
+.market-session-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.market-session-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(135deg, #171922, #101218);
+}
+.market-session-card.is-open {
+  border-color: #71bda344;
+  background: linear-gradient(135deg, #71bda30b, #101218);
+}
+.market-session-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.market-session-title h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+}
+.market-session-status {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: #ffffff06;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+}
+.is-open .market-session-status {
+  background: #71bda315;
+  color: var(--green);
+}
+.market-session-card progress {
+  display: block;
+  appearance: none;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 10px;
+  background: #292c36;
+  color: var(--green);
+}
+.market-session-card progress::-webkit-progress-bar {
+  background: #292c36;
+  border-radius: 10px;
+}
+.market-session-card progress::-webkit-progress-value {
+  background: var(--green);
+  border-radius: 10px;
+}
+.market-session-card progress::-moz-progress-bar {
+  background: var(--green);
+  border-radius: 10px;
+}
+.market-session-hours {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 14px 0 4px;
+  color: #d9dbe2;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.market-session-hours small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.market-session-date {
+  margin: 0 0 12px;
+  font-size: 10px;
+}
+.market-session-countdown {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.market-session-summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 18px 0 8px;
+  font-size: 12px;
+  color: var(--gold);
+}
+.market-session-note {
+  display: block;
+  max-width: 90ch;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+@media (max-width: 1200px) {
+  .market-session-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .market-session-grid {
+    gap: 10px;
+  }
+  .market-session-card {
+    padding: 14px;
+  }
+  .market-session-title h3 {
+    font-size: 14px;
+  }
+  .market-session-hours {
+    font-size: 12px;
+  }
+}
+@media (max-width: 359px) {
+  .market-session-grid {
+    grid-template-columns: 1fr;
+  }
+}

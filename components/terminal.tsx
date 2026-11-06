@@ -19,6 +19,7 @@ import { STRATEGIES, TIMEFRAMES } from "@/lib/strategy";
 import NewsGuide from "./news-guide";
 import NewsRisk from "./news-risk";
 import AdminShortcuts from "./admin-shortcuts";
+import MarketSessions from "./market-sessions";
 import { ownerAdminNavigation } from "@/lib/admin-navigation";
 import IntelligencePanel from "./intelligence-panel";
 import type { IntelligenceBundle } from "@/lib/intelligence/types";
@@ -512,6 +513,7 @@ export default function Terminal({
                   icon={<Target size={17} />}
                 />
               </div>
+              <MarketSessions now={clock} />
               <div className="market-grid">
                 <section className="panel chart-panel">
                   <div className="panel-heading">

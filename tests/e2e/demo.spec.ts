@@ -509,3 +509,32 @@ test("launch content becomes visible even when JavaScript is unavailable", async
   ).toBe("rgb(9, 10, 15)");
   await context.close();
 });
+
+test("market sessions show MYT hours, overlaps and weekend closure without implying volatility", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-11-06T13:30:00Z"));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const sessions = page.getByRole("region", {
+    name: "Market sessions",
+    exact: true,
+  });
+  await expect(sessions.locator("article")).toHaveCount(4);
+  await expect(sessions.getByRole("progressbar")).toHaveCount(4);
+  await expect(sessions).toContainText("London & New York overlap");
+  const london = sessions.locator("article").filter({
+    has: page.getByRole("heading", { name: "London", exact: true }),
+  });
+  await expect(london).toContainText("16:00 – 01:00");
+  await expect(london).toContainText("Next day");
+  await expect(london.getByText("Open", { exact: true })).toBeVisible();
+  await page.clock.setFixedTime(new Date("2026-11-07T12:00:00Z"));
+  await expect(sessions).toContainText("Between scheduled sessions");
+  await expect(sessions.getByText("Closed", { exact: true })).toHaveCount(4);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
