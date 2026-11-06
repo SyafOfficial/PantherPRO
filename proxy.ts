@@ -8,6 +8,7 @@ export async function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const policy = contentPolicy(nonce, process.env.NODE_ENV === "development");
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.delete("x-panther-auth-unavailable");
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", policy);
   const secure = (response: NextResponse) => {
@@ -37,7 +38,10 @@ export async function proxy(request: NextRequest) {
     )
   )
     return secure(response);
-  if (["/", "/api/health", "/login"].includes(request.nextUrl.pathname))
+  if (
+    ["/", "/api/health"].includes(request.nextUrl.pathname) ||
+    (request.nextUrl.pathname === "/login" && request.method !== "GET")
+  )
     return secure(response);
   const db = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -65,6 +69,9 @@ export async function proxy(request: NextRequest) {
     .catch(() => ({ error: { status: 503 } }));
   const recovery = authRecovery(error);
   if (recovery === "sign_in") {
+    // A login GET with invalid credentials must display the form, not redirect
+    // to itself. Preserve SDK cookie cleanup from this refresh attempt.
+    if (request.nextUrl.pathname === "/login") return secure(response);
     const expired = request.nextUrl.pathname.startsWith("/api/")
       ? NextResponse.json(
           { error: "Session expired. Please sign in again." },
@@ -81,6 +88,12 @@ export async function proxy(request: NextRequest) {
     return secure(expired);
   }
   if (recovery === "unavailable") {
+    if (request.nextUrl.pathname === "/login") {
+      requestHeaders.set("x-panther-auth-unavailable", "1");
+      const login = NextResponse.next({ request: { headers: requestHeaders } });
+      for (const cookie of response.cookies.getAll()) login.cookies.set(cookie);
+      return secure(login);
+    }
     const unavailable = request.nextUrl.pathname.startsWith("/api/")
       ? NextResponse.json(
           { error: "Authentication is temporarily unavailable. Please retry." },

@@ -1,13 +1,27 @@
 import Link from "next/link";
 import { authenticate, resendConfirmation } from "./actions";
 import AuthSubmit from "@/components/auth-submit";
-import { isConfigured } from "@/lib/supabase";
+import { identity, isConfigured } from "@/lib/supabase";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { sessionDestination } from "@/lib/session-destination";
 export default async function Login({
   searchParams,
 }: {
   searchParams: Promise<{ mode?: string; message?: string }>;
 }) {
   const params = await searchParams;
+  // Proxy renews existing cookies before this page; do not replace a valid
+  // elevated session with a fresh password login that would require MFA again.
+  if (!(await headers()).get("x-panther-auth-unavailable")) {
+    let user = null;
+    try {
+      user = await identity();
+    } catch {
+      /* Keep sign-in available during a profile/Auth outage. */
+    }
+    if (user) redirect(sessionDestination(user));
+  }
   const signup = params.mode === "signup";
   return (
     <main className="auth-page">

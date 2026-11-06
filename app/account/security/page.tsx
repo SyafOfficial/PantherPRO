@@ -43,7 +43,9 @@ export default async function Security({
       )}
       {user && (
         <div className="panel content-panel">
-          <h2>Session assurance: {user.aal}</h2>
+          <h2>
+            {user.aal === "aal2" ? "Session verified." : "Verify your session."}
+          </h2>
           <p>
             Your role: {user.role}. Two-factor verification does not grant an
             administrator role.
@@ -59,7 +61,7 @@ export default async function Security({
         <section className="panel content-panel" key={f.id}>
           <h2>{f.friendly_name || "Authenticator"}</h2>
           <p>Status: {f.status}</p>
-          {f.status === "verified" && (
+          {f.status === "verified" && user?.aal !== "aal2" && (
             <form action={verifyTotp} className="form">
               <input type="hidden" name="factor_id" value={f.id} />
               <label>

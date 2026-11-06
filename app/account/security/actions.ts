@@ -45,7 +45,8 @@ export async function enrollTotp(
   };
 }
 export async function verifyTotp(form: FormData) {
-  const { db } = await ownSession();
+  const { user, db } = await ownSession();
+  if (user.role === "admin" && user.aal === "aal2") redirect("/admin");
   const factorId = String(form.get("factor_id") ?? ""),
     code = String(form.get("code") ?? "");
   if (!/^[0-9]{6}$/.test(code))
@@ -56,6 +57,7 @@ export async function verifyTotp(form: FormData) {
       "/account/security?message=Verification+failed.+Check+the+code+and+device+clock.",
     );
   revalidatePath("/admin");
+  if (user.role === "admin") redirect("/admin");
   redirect(
     "/account/security?message=Authenticator+verified.+Your+session+has+been+upgraded.",
   );

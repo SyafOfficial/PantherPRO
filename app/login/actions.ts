@@ -1,4 +1,5 @@
 "use server";
+import { sessionDestination } from "@/lib/session-destination";
 import { headers } from "next/headers";
 import { publicOrigin } from "@/lib/deployment";
 import { authFailureMessage } from "@/lib/auth-messages";
@@ -43,8 +44,7 @@ export async function authenticate(form: FormData) {
   const { error } = await db.auth.signInWithPassword({ email, password });
   if (error) message(authFailureMessage(error, "login"));
   const user = await identity();
-  if (user?.role === "admin") redirect("/account/security");
-  redirect("/dashboard");
+  redirect(sessionDestination(user));
 }
 export async function signOut() {
   if (isConfigured()) {
