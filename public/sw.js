@@ -3,58 +3,10 @@ self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) =>
   event.waitUntil(self.clients.claim()),
 );
-// A navigation must resolve to either live content or a useful retry screen.
-// Never retain private documents, credentials, quotes or API data in a cache.
-function connectionScreen(request, slow) {
-  const url = new URL(request.url);
-  const target = (url.pathname + url.search).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
-  return new Response(
-    `<!doctype html><html lang="en" style="background:#090a0f;color-scheme:dark"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#090a0f"><title>Panther FX · Reconnect</title></head><body style="margin:0;min-height:100svh;display:grid;place-items:center;background:#090a0f;color:#f5f5f7;font-family:system-ui"><main style="padding:32px;max-width:400px;text-align:center"><div style="color:#d9b66f;letter-spacing:4px">PANTHER FX</div><h1>${slow ? "Let’s Reconnect." : "You Are Offline."}</h1><p style="color:#a1a3b0;line-height:1.6">${slow ? "Your workspace is taking longer than expected. Please retry in a moment." : "Connect to the internet, then reopen your workspace."}</p><a href="${target}" style="display:inline-block;margin-top:16px;padding:14px 28px;border-radius:8px;background:#d9b66f;color:#090a0f;text-decoration:none">Retry</a></main></body></html>`,
-    {
-      status: 503,
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Cache-Control": "no-store",
-        "Retry-After": "5",
-        "Content-Security-Policy":
-          "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
-      },
-    },
-  );
-}
-async function liveNavigation(request) {
-  let timer;
-  const controller = new AbortController();
-  try {
-    const deadline = new Promise((resolve) => {
-      timer = setTimeout(() => {
-        resolve(connectionScreen(request, true));
-        controller.abort();
-      }, 45000);
-    });
-    const live = fetch(request, {
-      signal: controller.signal,
-      cache: "no-store",
-    })
-      .then((response) =>
-        response.status >= 500 ? connectionScreen(request, true) : response,
-      )
-      .catch(() => connectionScreen(request, false));
-    return await Promise.race([live, deadline]);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-self.addEventListener("fetch", (event) => {
-  if (event.request.mode === "navigate" && event.request.method === "GET")
-    event.respondWith(liveNavigation(event.request));
-});
+// Browser-managed navigation: do not intercept document requests.
+// Render free instances can take longer than 45 seconds to wake up.
+// Keep authenticated documents, API responses, quotes and credentials uncached.
+// Push notification handling below remains unchanged.
 
 function seenStore() {
   return new Promise((resolve, reject) => {
