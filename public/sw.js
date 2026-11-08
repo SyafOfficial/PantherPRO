@@ -5,7 +5,8 @@ self.addEventListener("activate", (event) =>
 );
 // A navigation must resolve to either live content or a useful retry screen.
 // Never retain private documents, credentials, quotes or API data in a cache.
-function connectionScreen(request, slow) {
+function connectionScreen(request, reason) {
+  const slow = reason !== "offline";
   const url = new URL(request.url);
   const target = (url.pathname + url.search).replace(
     /[&<>"']/g,
@@ -32,20 +33,22 @@ async function liveNavigation(request) {
   let timer;
   const controller = new AbortController();
   try {
+    // Render free instances can require more than 50 seconds to wake.
+    // Avoid cancelling a valid response before the host has started.
     const deadline = new Promise((resolve) => {
       timer = setTimeout(() => {
-        resolve(connectionScreen(request, true));
+        resolve(connectionScreen(request, "timeout"));
         controller.abort();
-      }, 45000);
+      }, 90000);
     });
     const live = fetch(request, {
       signal: controller.signal,
       cache: "no-store",
     })
       .then((response) =>
-        response.status >= 500 ? connectionScreen(request, true) : response,
+        response.status >= 500 ? connectionScreen(request, "server") : response,
       )
-      .catch(() => connectionScreen(request, false));
+      .catch(() => connectionScreen(request, "offline"));
     return await Promise.race([live, deadline]);
   } finally {
     clearTimeout(timer);
