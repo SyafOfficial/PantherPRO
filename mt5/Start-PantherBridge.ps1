@@ -13,6 +13,8 @@ try{$secret=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)}finally{[Ru
 if($secret.Length -lt 32){throw 'Bridge secret must contain at least 32 characters.'}
 $utf8=New-Object Text.UTF8Encoding($false)
 $lastDigest=''
+$lastWarning=''
+$lastWarningAt=[DateTime]::MinValue
 Write-Host 'Panther read-only uploader started. Keep MT5 and this window running. Ctrl+C stops it.'
 try{
  while($true){
@@ -33,13 +35,20 @@ try{
     $hmac=New-Object Security.Cryptography.HMACSHA256
     try{$hmac.Key=$utf8.GetBytes($secret);$signature=([BitConverter]::ToString($hmac.ComputeHash($utf8.GetBytes($timestamp+'.'+$digest)))).Replace('-','').ToLowerInvariant()}finally{$hmac.Dispose()}
     $result=Invoke-RestMethod -Uri $Endpoint -Method Post -ContentType 'application/json; charset=utf-8' -Body $bytes -Headers @{'x-panther-timestamp'=$timestamp;'x-panther-signature'=$signature} -MaximumRedirection 0 -TimeoutSec 25
-    if($result.received -eq $true){$lastDigest=$digest;Write-Host ('Snapshot accepted at '+[DateTime]::Now.ToString('HH:mm:ss')+'; this acknowledgment does not mean a signal was published.')}
+    if($result.received -eq $true){$lastDigest=$digest;$lastWarning='';Write-Host ('Snapshot accepted at '+[DateTime]::Now.ToString('HH:mm:ss')+'; this acknowledgment does not mean a signal was published.')}
    }
   }catch{
    # Do not print exception bodies/headers, raw snapshots, signatures or credentials.
    $status=$null
    if($_.Exception.Response){$status=[int]$_.Exception.Response.StatusCode}
-   if($status){Write-Warning ('Upload not accepted; HTTP '+$status+'. Check enabled bridge, matching secret and server migrations.')}else{Write-Warning 'Snapshot unavailable/stale or connection failed. Check MT5, PC clock and connection.'}
+   # Report repeated failures at most once per minute; keep retrying automatically.
+   $message=if($status){'Upload not accepted; HTTP '+$status+'. Check enabled bridge, matching secret and server migrations.'}else{'Snapshot unavailable/stale or connection failed. Check MT5, PC clock and connection.'}
+   $now=[DateTime]::UtcNow
+   if($message -ne $lastWarning -or ($now-$lastWarningAt).TotalSeconds -ge 60){
+    Write-Warning $message
+    $lastWarning=$message
+    $lastWarningAt=$now
+   }
   }
   Start-Sleep -Milliseconds 250
  }
