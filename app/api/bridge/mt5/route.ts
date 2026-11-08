@@ -109,7 +109,14 @@ async function receiveSnapshot(
   }
   if (!report.freshness.usableCurrentQuote)
     return Response.json(
-      { error: "Snapshot or broker tick is stale; no live data accepted" },
+      {
+        error: "Snapshot or broker tick is stale; no live data accepted",
+        code: "stale_market_data",
+        // A closed market is possible on weekends, but the server cannot infer
+        // broker session status from the calendar alone. Never publish stale ticks.
+        weekend_utc: [0, 6].includes(new Date().getUTCDay()),
+        signal_published: false,
+      },
       { status: 422, headers },
     );
   setStage("storing_snapshot");
