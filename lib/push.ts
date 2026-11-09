@@ -74,8 +74,8 @@ export function notificationPayload(
     body = "Ready next zone";
   }
   if (delivery.event_type === "signal.break_even") {
-    title = "Price running 50 pips!";
-    body = "Collect half and Set BE";
+    title = "50 pips running!";
+    body = "Close partial now";
   }
   if (delivery.event_type === "signal.stop_hit" && signal?.break_even) {
     title = "Original SL reached";
