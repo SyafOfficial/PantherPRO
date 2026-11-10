@@ -6,11 +6,7 @@ import StrategyFields from "@/components/strategy-fields";
 import SignalEditor from "@/components/signal-editor";
 import BroadcastCenter from "@/components/broadcast-center";
 import ObservationControl from "@/components/observation-control";
-import {
-  createSignal,
-  transitionSignal,
-  changeMemberRole,
-} from "./actions";
+import { createSignal, transitionSignal, changeMemberRole } from "./actions";
 export const dynamic = "force-dynamic";
 export default async function Admin({
   searchParams,
