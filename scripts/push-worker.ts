@@ -221,7 +221,9 @@ async function deliver(item: Delivery) {
       const announcementId = outbox?.payload?.announcement_id;
       if (
         typeof announcementId !== "string" ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(announcementId)
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          announcementId,
+        )
       ) {
         await finish(item, "skipped", "announcement_missing");
         return;
