@@ -5,12 +5,8 @@ import { redirect } from "next/navigation";
 import StrategyFields from "@/components/strategy-fields";
 import SignalEditor from "@/components/signal-editor";
 import ObservationControl from "@/components/observation-control";
-import {
-  setAutomaticEngine,
-  createSignal,
-  transitionSignal,
-  publishAnnouncement,
-} from "./actions";
+import BroadcastCenter from "@/components/broadcast-center";
+import { setAutomaticEngine, createSignal, transitionSignal } from "./actions";
 export const dynamic = "force-dynamic";
 export default async function Admin({
   searchParams,
@@ -399,32 +395,7 @@ export default async function Admin({
               </div>
             ))}
           </section>
-          <section className="panel content-panel">
-            <h2>Publish an announcement</h2>
-            <form action={publishAnnouncement} className="form">
-              <label>
-                Title
-                <input name="title" required maxLength={150} disabled={demo} />
-              </label>
-              <label>
-                Announcement
-                <textarea
-                  name="body"
-                  required
-                  maxLength={5000}
-                  disabled={demo}
-                />
-              </label>
-              <input type="hidden" name="access" value="public" />
-              <button className="primary-button" disabled={demo}>
-                Review & publish announcement
-              </button>
-              <small>
-                Publishing creates an audited record and queues notifications
-                for eligible opted-in members.
-              </small>
-            </form>
-          </section>
+          <BroadcastCenter disabled={demo} />
         </div>
       </div>
     </div>

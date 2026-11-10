@@ -142,7 +142,7 @@ test("Phase 2 browser mutations fail closed without a configured account", async
   expect(anonymous.status()).toBe(401);
   await page.goto("/admin");
   await expect(
-    page.getByRole("button", { name: "Review & publish announcement" }),
+    page.getByRole("button", { name: "Publish & queue notifications" }),
   ).toBeDisabled();
 });
 

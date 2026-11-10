@@ -29,7 +29,7 @@ const series = z
   })
   .strict()
   .superRefine((s, c) => {
-    if ((s.availability === "available") !== (s.candles.length > 0))
+    if ((s.availability === "available") !== s.candles.length > 0)
       c.addIssue({
         code: "custom",
         message: "Availability must match exported bars",
