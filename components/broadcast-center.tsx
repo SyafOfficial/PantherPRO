@@ -111,7 +111,7 @@ export default function BroadcastCenter({
             </small>
           </div>
         )}
-       <label style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
+        <label style={{ display: "flex", gap: "0.6rem", alignItems: "center" }}>
           <input
             type="checkbox"
             checked={confirmed}
