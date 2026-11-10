@@ -56,6 +56,7 @@ export type PushSignalDetails = {
   tp2: number | string;
   tp3: number | string;
 };
+export type PushAnnouncementDetails = { title: string; body: string };
 export function notificationPayload(
   delivery: {
     id: string;
@@ -66,9 +67,14 @@ export function notificationPayload(
   },
   signal?: PushSignalDetails | null,
   client?: ClientPushDetails | null,
+  announcement?: PushAnnouncementDetails | null,
 ) {
   let title = "Panther FX intelligence";
   let body = "A new update is available. Open your terminal to review it.";
+  if (delivery.event_type === "announcement.published" && announcement) {
+    title = announcement.title;
+    body = announcement.body;
+  }
   if (delivery.event_type === "signal.be_hit") {
     title = "Our setup HIT BE!";
     body = "Ready next zone";
