@@ -4,13 +4,9 @@ import { identity, isConfigured, supabase } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 import StrategyFields from "@/components/strategy-fields";
 import SignalEditor from "@/components/signal-editor";
+import BroadcastCenter from "@/components/broadcast-center";
 import ObservationControl from "@/components/observation-control";
-import {
-  createSignal,
-  transitionSignal,
-  changeMemberRole,
-  publishAnnouncement,
-} from "./actions";
+import { createSignal, transitionSignal, changeMemberRole } from "./actions";
 export const dynamic = "force-dynamic";
 export default async function Admin({
   searchParams,
@@ -340,38 +336,7 @@ export default async function Admin({
               </div>
             ))}
           </section>
-          <section className="panel content-panel">
-            <h2>Publish an announcement</h2>
-            <form action={publishAnnouncement} className="form">
-              <label>
-                Title
-                <input name="title" required maxLength={150} disabled={demo} />
-              </label>
-              <label>
-                Announcement
-                <textarea
-                  name="body"
-                  required
-                  maxLength={5000}
-                  disabled={demo}
-                />
-              </label>
-              <label>
-                Audience
-                <select name="access">
-                  <option value="public">Public members</option>
-                  <option value="vip">VIP members</option>
-                </select>
-              </label>
-              <button className="primary-button" disabled={demo}>
-                Review & publish announcement
-              </button>
-              <small>
-                Publishing creates an audited record and queues notifications
-                for eligible opted-in members.
-              </small>
-            </form>
-          </section>
+          <BroadcastCenter disabled={demo} />
         </div>
       </div>
     </div>
