@@ -228,6 +228,7 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
       for (const notification of await registration.getNotifications())
         notification.close();
     });
+    await expect.poll(async () => (await notifications()).length).toBe(0);
     await send(
       `00000000-0000-4000-8000-0000000000${index}`,
       "/dashboard?view=Signals",
@@ -239,6 +240,29 @@ test("simulated browser push deduplicates deliveries and rejects cross-origin li
     if (eventType === "signal.break_even")
       expect((await notifications())[0].body).toBe("Collect half and Set BE");
   }
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    for (const notification of await registration.getNotifications())
+      notification.close();
+  });
+  await expect.poll(async () => (await notifications()).length).toBe(0);
+  await session.send("ServiceWorker.deliverPushMessage", {
+    origin: "http://127.0.0.1:3000",
+    registrationId,
+    data: JSON.stringify({
+      id: "00000000-0000-4000-8000-000000000086",
+      url: "/account#announcements",
+      eventType: "announcement.published",
+      title: "Good morning, lads!",
+      body: "Stay disciplined and trade safely.",
+    }),
+  });
+  await expect
+    .poll(async () => (await notifications())[0]?.title)
+    .toBe("Good morning, lads!");
+  expect((await notifications())[0].body).toBe(
+    "Stay disciplined and trade safely.",
+  );
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.ready;
     for (const notification of await registration.getNotifications())
