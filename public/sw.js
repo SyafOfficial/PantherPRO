@@ -119,7 +119,19 @@ self.addEventListener("push", (event) => {
         payload.body.length <= 400
           ? [payload.title, payload.body]
           : null;
+      const announcementCopy =
+        payload.eventType === "announcement.published" &&
+        url.pathname === "/account" &&
+        typeof payload.title === "string" &&
+        payload.title.trim().length > 0 &&
+        payload.title.length <= 150 &&
+        typeof payload.body === "string" &&
+        payload.body.trim().length > 0 &&
+        payload.body.length <= 5000
+          ? [payload.title, payload.body]
+          : null;
       const copy =
+        announcementCopy ??
         clientCopy ??
         progressCopies.get(payload.eventType) ??
         (payload.eventType === "signal.active"

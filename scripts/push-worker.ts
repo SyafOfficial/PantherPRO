@@ -13,6 +13,7 @@ import {
   safePushEndpoint,
   notificationPayload,
   type PushSignalDetails,
+  type PushAnnouncementDetails,
 } from "../lib/push";
 import { classifyPushFailure } from "../lib/delivery";
 import { createCalendarSync } from "../lib/calendar-sync";
@@ -208,6 +209,50 @@ async function deliver(item: Delivery) {
         return;
       }
     }
+    let announcement: PushAnnouncementDetails | null = null;
+    if (item.event_type === "announcement.published") {
+      const { data: outbox, error: outboxError } = await db
+        .from("notification_outbox")
+        .select("payload")
+        .eq("id", item.outbox_id)
+        .eq("event_type", "announcement.published")
+        .maybeSingle();
+      if (outboxError) throw new Error("Broadcast event lookup failed");
+      const announcementId = outbox?.payload?.announcement_id;
+      if (
+        typeof announcementId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          announcementId,
+        )
+      ) {
+        await finish(item, "skipped", "announcement_missing");
+        return;
+      }
+      const { data, error } = await db
+        .from("announcements")
+        .select("title,body,published_at")
+        .eq("id", announcementId)
+        .maybeSingle();
+      if (error) throw new Error("Broadcast content lookup failed");
+      if (!data?.published_at || !data.title || !data.body) {
+        await finish(item, "skipped", "announcement_missing");
+        return;
+      }
+      announcement = {
+        title: data.title.slice(0, 150),
+        body: data.body.slice(0, 5000),
+      };
+      // Recheck eligibility after fetching potentially audience-restricted content.
+      if (
+        !(await rpc("notification_allowed", {
+          event_id: item.outbox_id,
+          device_id: item.subscription_id,
+        }))
+      ) {
+        await finish(item, "skipped", "no_longer_eligible");
+        return;
+      }
+    }
     const client = await clientPushDetails(db, item.outbox_id, item.event_type);
     if (
       item.event_type.startsWith("client.") &&
@@ -224,7 +269,7 @@ async function deliver(item: Delivery) {
         endpoint: item.endpoint,
         keys: { p256dh: item.p256dh, auth: item.auth },
       },
-      JSON.stringify(notificationPayload(item, signal, client)),
+      JSON.stringify(notificationPayload(item, signal, client, announcement)),
       {
         TTL: 300,
         urgency: item.event_type.startsWith("signal.") ? "high" : "normal",
