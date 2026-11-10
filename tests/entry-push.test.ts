@@ -133,8 +133,8 @@ test("50-pip management push has exact copy and distinguishes a later original s
     ...delivery,
     event_type: "signal.break_even",
   });
-  assert.equal(alert.title, "Price running 50 pips!");
-  assert.equal(alert.body, "Collect half and Set BE");
+  assert.equal(alert.title, "50 pips running!");
+  assert.equal(alert.body, "Close partial now");
   const stopped = notificationPayload(
     { ...delivery, event_type: "signal.stop_hit" },
     { ...signal, break_even: true },
