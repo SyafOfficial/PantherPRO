@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { registerPushDevice } from "@/lib/push-device";
 import { Bell, Check, Send, ShieldCheck } from "lucide-react";
 type Preferences = {
   signals: boolean;
@@ -52,7 +53,7 @@ export default function NotificationSettings({
       setBusy(false);
     }
   }
-  async function enablePush() {
+  async function enablePush(renew = false) {
     setBusy(true);
     setMessage("");
     try {
@@ -74,29 +75,9 @@ export default function NotificationSettings({
         );
       await navigator.serviceWorker.register("/sw.js");
       const registration = await navigator.serviceWorker.ready;
-      const subscription =
-        (await registration.pushManager.getSubscription()) ??
-        (await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: bytes(publicKey),
-        }));
-      const json = subscription.toJSON();
-      const response = await fetch("/api/push/subscriptions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          endpoint: subscription.endpoint,
-          keys: json.keys,
-        }),
-      });
-      if (!response.ok)
-        throw new Error(
-          "Device registration failed. Sign in and retry; another account may own this subscription.",
-        );
+      await registerPushDevice(registration, bytes(publicKey), renew);
       setPreferences({ ...preferences, push_enabled: true });
-      setMessage(
-        "Device registered. Send a test to verify delivery; a running worker is required.",
-      );
+      setMessage("Device connected. Send a test push to check this phone.");
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Unable to enable push.",
@@ -158,8 +139,8 @@ export default function NotificationSettings({
       <Bell className="gold" size={28} />
       <h2>Notifications, on your terms.</h2>
       <p>
-        Choose the updates you receive. Push requires a registered device and a
-        running delivery worker. It has not been verified on this device.
+        Choose your alerts. Missing notifications? Reconnect this device, then
+        send a test push.
       </p>
       <div className="notification-controls">
         {(
@@ -196,10 +177,17 @@ export default function NotificationSettings({
         <button
           className="primary-button"
           disabled={!enabled || !publicKey || busy}
-          onClick={enablePush}
+          onClick={() => enablePush()}
         >
           <Bell size={15} />
           Enable this device
+        </button>
+        <button
+          className="secondary-button"
+          disabled={!enabled || !publicKey || busy}
+          onClick={() => enablePush(true)}
+        >
+          Reconnect this device
         </button>
         <button
           className="secondary-button"

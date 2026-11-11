@@ -88,7 +88,8 @@ self.addEventListener("push", (event) => {
         return;
       if (url.pathname === "/" && url.searchParams.has("view"))
         url.pathname = "/dashboard";
-      if (!(await firstDelivery(payload.id))) return;
+      // Storage can be unavailable on a device; never suppress an alert for that reason.
+      if (!(await firstDelivery(payload.id).catch(() => true))) return;
       const progressCopies = new Map([
         ["signal.be_hit", ["Our setup HIT BE!", "Ready next zone"]],
         ["signal.tp1", ["HIT TP 1 Lads!", "Collect half now and Set BE"]],
@@ -172,7 +173,7 @@ self.addEventListener("push", (event) => {
           data: { url: url.href },
         });
       } catch (error) {
-        await forgetDelivery(payload.id);
+        await forgetDelivery(payload.id).catch(() => {});
         throw error;
       }
     })(),
