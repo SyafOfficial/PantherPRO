@@ -12,7 +12,12 @@ import type {
 } from "./types";
 import { newsProfile, newsRisk } from "../news-context";
 import { parseFedRate, compareFedRates } from "./fed-rates";
+import { displaySnapshot } from "../engine/display";
+
 const MINUTE = 60000;
+export const technicalFrames = ["M30", "H1", "H4"] as const;
+const frameSeconds = { M30: 1800, H1: 3600, H4: 14400 } as const;
+
 const limitations = [
   "Rules-based context, not a trading signal, broker execution or guaranteed prediction.",
   "No language model is connected. Signal publication still requires independent administrator approval.",
@@ -208,6 +213,105 @@ export function technicalAnalysis(
     "Ranges are observed midpoint proxies, not validated support/resistance, order-book liquidity or full OHLC candles.",
     "Volatility is sampled one-minute log-return dispersion, not an annualized or forecast volatility.",
     "The RSI uses a simple 14-change window, not Wilder smoothing. EMA initialization and sample window affect readings.",
+  );
+  return report;
+}
+export function mt5TechnicalAnalysis(
+  snapshot: Record<string, unknown>,
+  now: number,
+): Analysis {
+  const report = base("technical", now, "XAUUSD technical intelligence");
+  const readings = technicalFrames.map((frame) => {
+    const feed = displaySnapshot(
+      {
+        ...snapshot,
+        ...(snapshot[frame] as object | undefined),
+      },
+      frame,
+    );
+    const serverTime = Number(snapshot.server_time_raw);
+    const bars = feed.bars.slice(-30);
+    const last = bars.at(-1);
+    const duration = frameSeconds[frame];
+    if (
+      !last ||
+      bars.length < 30 ||
+      last.opened_at_server_raw + duration > serverTime ||
+      serverTime - last.opened_at_server_raw >= duration * 2
+    )
+      return null;
+    const closes = bars.map((bar) => bar.close);
+    const fast = ema(closes, 9);
+    const slow = ema(closes, 21);
+    const strength = rsi(closes);
+    const momentum = last.close - closes.at(-11)!;
+    const threshold = Math.max(
+      (feed.quote.ask - feed.quote.bid) * 0.5,
+      last.close * 0.00001,
+    );
+    const bias: Analysis["bias"] =
+      fast - slow > threshold && momentum > threshold && strength >= 55
+        ? "bullish"
+        : slow - fast > threshold && momentum < -threshold && strength <= 45
+          ? "bearish"
+          : "neutral";
+    return { frame, feed, bias, strength, last, bars };
+  });
+  if (readings.some((reading) => reading === null))
+    return missing(
+      report,
+      "Waiting for recent completed M30, H1 and H4 candles.",
+    );
+
+  const [m30, h1, h4] = readings;
+  if (!m30 || !h1 || !h4) return report;
+  const { feed } = m30;
+  const exported = Date.parse(feed.exported_at);
+  const received = Date.parse(feed.quote.received_at);
+  const observed = Date.parse(feed.quote.observed_at);
+  report.source_latest_at = feed.quote.observed_at;
+  if (
+    exported > now ||
+    received > now + 5000 ||
+    exported > received + 5000 ||
+    now - Math.min(exported, received) >= 30_000 ||
+    now - observed > 60_000
+  )
+    return missing(report, "Waiting for a fresh Vestrado MT5 update.");
+
+  report.valid_until = new Date(
+    Math.min(exported + 30_000, received + 30_000, observed + 60_000),
+  ).toISOString();
+  report.evidence = [
+    {
+      id: `vestrado-xauusd-${feed.exported_at}`,
+      provider_id: "vestrado-mt5",
+      source: feed.quote.source_name,
+      timestamp: feed.quote.observed_at,
+      reference: "XAUUSD.V · completed M30, H1 and H4 candles",
+    },
+  ];
+  report.bias =
+    m30.bias === h1.bias && h1.bias === h4.bias ? h1.bias : "neutral";
+  report.summary =
+    report.bias === "neutral"
+      ? "M30, H1 and H4 show mixed or neutral direction."
+      : `M30, H1 and H4 agree on a ${report.bias} bias.`;
+  const recent = h1.bars.slice(-20);
+  report.metrics = {
+    m30_bias: m30.bias,
+    h1_bias: h1.bias,
+    h4_bias: h4.bias,
+    h1_rsi: h1.strength,
+    h1_range_low: Math.min(...recent.map((bar) => bar.low)),
+    h1_range_high: Math.max(...recent.map((bar) => bar.high)),
+  };
+  report.explanations = [
+    "Each timeframe combines EMA(9), EMA(21), RSI(14) and the change over ten completed candles.",
+    "The overall bias changes when all three timeframes align in a new direction. Mixed readings show a neutral overall bias.",
+  ];
+  report.limitations.push(
+    "The H1 range uses the last 20 completed broker candles. Its high and low are observed range boundaries.",
   );
   return report;
 }
@@ -445,8 +549,11 @@ export function fundamentalAnalysis(
 export function buildIntelligence(
   inputs: IntelligenceInputs,
   now = Date.parse(inputs.as_of),
+  mt5Report?: Analysis,
 ): IntelligenceBundle {
-  const technical = technicalAnalysis(inputs.quotes, now);
+  const licensed = technicalAnalysis(inputs.quotes, now);
+  const technical =
+    licensed.bias === "insufficient_data" && mt5Report ? mt5Report : licensed;
   const upcoming = inputs.events
     .filter((e) => Date.parse(e.event_time) > now)
     .sort((a, b) => Date.parse(a.event_time) - Date.parse(b.event_time))

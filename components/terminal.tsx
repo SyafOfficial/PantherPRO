@@ -1220,7 +1220,7 @@ function Section({
       </div>
     );
   if (view === "AI Intelligence")
-    return <IntelligencePanel bundle={intelligence} />;
+    return <IntelligencePanel bundle={intelligence} refresh={!demo} />;
   if (view === "Economic Calendar")
     return (
       <>

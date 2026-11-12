@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   technicalAnalysis,
+  mt5TechnicalAnalysis,
   fundamentalAnalysis,
   buildIntelligence,
   parseEconomicFigure,
@@ -51,6 +52,66 @@ function event(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
     ...overrides,
   };
 }
+test("MT5 technical context uses completed candles and withholds stale evidence", () => {
+  const serverTime = Math.floor(now / 1000) + 7200;
+  const snapshot = {
+    source: "Vestrado MT5",
+    symbol: "XAUUSD.V",
+    server_time_raw: serverTime,
+    exported_at: new Date(now - 5000).toISOString(),
+    received_at: new Date(now - 3000).toISOString(),
+    quote: { bid: 2029, ask: 2029.2, last_tick_time_raw: serverTime - 1 },
+  };
+  function series(timeframe: string, seconds: number, direction = 1) {
+    return {
+      timeframe,
+      candles: Array.from({ length: 30 }, (_, i) => {
+        const close = 2000 + i * direction;
+        return {
+          opened_at_server_raw: serverTime - (30 - i) * seconds,
+          open: close,
+          close,
+          low: close - 0.5,
+          high: close + 0.5,
+        };
+      }),
+    };
+  }
+  const feed = {
+    ...snapshot,
+    M30: series("M30", 1800),
+    H1: series("H1", 3600),
+    H4: series("H4", 14400),
+  };
+  const report = mt5TechnicalAnalysis(feed, now);
+  assert.equal(report.bias, "bullish");
+  assert.equal(report.metrics.h1_rsi, 100);
+  assert.equal(report.evidence[0].source, "Vestrado MT5");
+  assert.equal(report.valid_until, new Date(now + 25_000).toISOString());
+  const mixed = mt5TechnicalAnalysis(
+    { ...feed, H4: series("H4", 14400, -1) },
+    now,
+  );
+  assert.equal(mixed.bias, "neutral");
+  assert.equal(mixed.metrics.h4_bias, "bearish");
+  const stale = mt5TechnicalAnalysis(feed, now + 25_000);
+  assert.equal(stale.bias, "insufficient_data");
+  assert.deepEqual(stale.metrics, {});
+  const incomplete = structuredClone(feed);
+  incomplete.H4.candles.at(-1)!.opened_at_server_raw += 1;
+  assert.equal(mt5TechnicalAnalysis(incomplete, now).bias, "insufficient_data");
+  const inputs = { quotes: [], events: [], as_of: new Date(now).toISOString() };
+  assert.equal(
+    buildIntelligence(inputs, now, report).technical.bias,
+    "bullish",
+  );
+  assert.equal(
+    buildIntelligence({ ...inputs, quotes: history(-1) }, now, report).technical
+      .bias,
+    "bearish",
+  );
+});
+
 test("technical rules distinguish rising, falling and flat observations with provenance", () => {
   const rising = technicalAnalysis(history(), now);
   assert.equal(rising.bias, "bullish");

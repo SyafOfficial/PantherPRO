@@ -4,6 +4,12 @@ import { Sparkles, ShieldCheck, Clock3, ArrowUpRight } from "lucide-react";
 import type { Analysis, IntelligenceBundle } from "@/lib/intelligence/types";
 import { malaysiaTime } from "@/lib/market-data";
 const labels: Record<string, string> = {
+  m30_bias: "M30 bias",
+  h1_bias: "H1 bias",
+  h4_bias: "H4 bias",
+  h1_rsi: "H1 RSI (14)",
+  h1_range_low: "H1 range low",
+  h1_range_high: "H1 range high",
   ema9: "EMA · 9 minutes",
   ema21: "EMA · 21 minutes",
   rsi14: "RSI · simple 14-change",
@@ -30,13 +36,45 @@ const labels: Record<string, string> = {
   activity_regime: "Headline activity PMI regime",
 };
 export default function IntelligencePanel({
-  bundle,
+  bundle: initialBundle,
+  refresh,
 }: {
   bundle: IntelligenceBundle;
+  refresh: boolean;
 }) {
   const [mode, setMode] = useState<"technical" | "pre_news" | "post_news">(
     "technical",
   );
+  const [latest, setLatest] = useState<IntelligenceBundle>();
+  useEffect(() => {
+    if (!refresh) return;
+    const controller = new AbortController();
+    let loading = false;
+    async function update() {
+      if (document.hidden || loading) return;
+      loading = true;
+      try {
+        const response = await fetch("/api/intelligence", {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        if (response.ok) setLatest(await response.json());
+      } catch {
+        // The report expires on its original source timestamp if refresh fails.
+      } finally {
+        loading = false;
+      }
+    }
+    void update();
+    const timer = setInterval(update, 15_000);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, [refresh]);
+  const bundle = latest ?? initialBundle;
   const reports = mode === "technical" ? [bundle.technical] : bundle[mode];
   return (
     <>
