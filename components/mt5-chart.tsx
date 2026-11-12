@@ -40,10 +40,10 @@ export default function MT5Chart({
                 y1={y(value)}
                 x2="680"
                 y2={y(value)}
-                stroke="#232630"
+                stroke="var(--chart-grid)"
                 strokeDasharray="3 5"
               />
-              <text x="688" y={y(value) + 4} fill="#8a8f9b" fontSize="10">
+              <text x="688" y={y(value) + 4} fill="var(--muted)" fontSize="10">
                 {value.toFixed(2)}
               </text>
             </g>
@@ -52,7 +52,7 @@ export default function MT5Chart({
         {bars.map((b, i) => {
           const x = 12 + i * step,
             up = b.close >= b.open,
-            color = up ? "#67b6a2" : "#d7737a";
+            color = up ? "var(--green)" : "var(--red)";
           return (
             <g key={b.opened_at_server_raw} stroke={color}>
               <title>{`Broker ${new Date(b.opened_at_server_raw * 1000).toISOString().slice(0, 16).replace("T", " ")} · O ${b.open} H ${b.high} L ${b.low} C ${b.close}`}</title>
@@ -77,7 +77,7 @@ export default function MT5Chart({
           y1={bidY}
           x2="680"
           y2={bidY}
-          stroke={fresh ? "#d9b66f" : "#727684"}
+          stroke={fresh ? "var(--accent)" : "var(--muted)"}
           strokeDasharray="4 4"
         />
         <rect
@@ -86,9 +86,9 @@ export default function MT5Chart({
           width="77"
           height="20"
           rx="3"
-          fill={fresh ? "#d9b66f" : "#727684"}
+          fill={fresh ? "var(--accent)" : "var(--muted)"}
         />
-        <text x="687" y={bidY + 4} fill="#121318" fontSize="10">
+        <text x="687" y={bidY + 4} fill="var(--on-accent)" fontSize="10">
           {data.quote.bid.toFixed(2)}
         </text>
         {[0, Math.floor((bars.length - 1) / 2), bars.length - 1].map(
@@ -98,7 +98,7 @@ export default function MT5Chart({
               x={12 + index * step}
               y="268"
               textAnchor={i === 2 ? "end" : "start"}
-              fill="#8a8f9b"
+              fill="var(--muted)"
               fontSize="10"
             >
               {new Date(bars[index].opened_at_server_raw * 1000)
@@ -108,7 +108,7 @@ export default function MT5Chart({
             </text>
           ),
         )}
-        <text x="12" y="290" fill="#8a8f9b" fontSize="10">
+        <text x="12" y="290" fill="var(--muted)" fontSize="10">
           Chart Time · Completed Candles · {fresh ? "Live Bid" : "Stale Bid"}
         </text>
       </svg>

@@ -558,7 +558,7 @@ test("launch content becomes visible even when JavaScript is unavailable", async
     await page
       .locator("html")
       .evaluate((e) => getComputedStyle(e).backgroundColor),
-  ).toBe("rgb(9, 10, 15)");
+  ).toBe("rgb(248, 248, 255)");
   await context.close();
 });
 

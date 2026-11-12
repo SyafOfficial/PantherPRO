@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
       { name: "Notifications", url: "/account" },
     ],
     display: "standalone",
-    background_color: "#090A0F",
-    theme_color: "#090A0F",
+    background_color: "#F8F8FF",
+    theme_color: "#F8F8FF",
     icons: [
       {
         src: "/icon-192.png",

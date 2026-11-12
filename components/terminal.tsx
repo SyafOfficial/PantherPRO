@@ -875,8 +875,8 @@ function Chart({ timeframe }: { timeframe: string }) {
       >
         <defs>
           <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="#D9B66F" stopOpacity=".1" />
-            <stop offset="1" stopColor="#D9B66F" stopOpacity="0" />
+            <stop offset="0" stopColor="var(--accent)" stopOpacity=".1" />
+            <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[45, 95, 145, 195, 245].map((y, i) => (
@@ -886,10 +886,10 @@ function Chart({ timeframe }: { timeframe: string }) {
               y1={y}
               x2="688"
               y2={y}
-              stroke="#232630"
+              stroke="var(--chart-grid)"
               strokeDasharray="3 5"
             />
-            <text x="705" y={y + 4} fill="#626777" fontSize="10">
+            <text x="705" y={y + 4} fill="var(--muted)" fontSize="10">
               {2380 - i * 15}.00
             </text>
           </g>
@@ -899,21 +899,21 @@ function Chart({ timeframe }: { timeframe: string }) {
           y="178"
           width="688"
           height="34"
-          fill="#d9b66f"
+          fill="var(--accent)"
           fillOpacity=".035"
         />
-        <text x="13" y="201" fill="#8c7952" fontSize="9" letterSpacing="1">
+        <text x="13" y="201" fill="var(--muted)" fontSize="9" letterSpacing="1">
           ILLUSTRATIVE SUPPORT ZONE
         </text>
         <path
           d="M20 240 Q180 210 290 215 T660 120"
-          stroke="#d9b66f"
+          stroke="var(--accent)"
           opacity=".45"
           fill="none"
           strokeWidth="1.5"
         />
         {candles.map((c, i) => (
-          <g key={i} stroke={c.up ? "#67b6a2" : "#a86470"}>
+          <g key={i} stroke={c.up ? "var(--green)" : "var(--red)"}>
             <line x1={c.x + 3} y1={c.y - 7} x2={c.x + 3} y2={c.y + c.h + 9} />
             <rect
               x={c.x}
@@ -921,7 +921,7 @@ function Chart({ timeframe }: { timeframe: string }) {
               width="6"
               height={c.h}
               rx=".7"
-              fill={c.up ? "#67b6a2" : "#a86470"}
+              fill={c.up ? "var(--green)" : "var(--red)"}
             />
           </g>
         ))}
@@ -930,23 +930,36 @@ function Chart({ timeframe }: { timeframe: string }) {
           y1="123"
           x2="690"
           y2="123"
-          stroke="#d9b66f"
+          stroke="var(--accent)"
           opacity=".6"
           strokeDasharray="4 4"
         />
-        <rect x="690" y="114" width="69" height="19" rx="3" fill="#d9b66f" />
-        <text x="697" y="127" fill="#121318" fontSize="10">
+        <rect
+          x="690"
+          y="114"
+          width="69"
+          height="19"
+          rx="3"
+          fill="var(--accent)"
+        />
+        <text x="697" y="127" fill="var(--on-accent)" fontSize="10">
           2,346.80
         </text>
         {["08:00", "10:00", "12:00", "14:00", "16:00", "18:00"].map((t, i) => (
-          <text key={t} x={20 + i * 128} y="287" fill="#626777" fontSize="10">
+          <text
+            key={t}
+            x={20 + i * 128}
+            y="287"
+            fill="var(--muted)"
+            fontSize="10"
+          >
             {t}
           </text>
         ))}
         <text
           x="330"
           y="55"
-          fill="#727684"
+          fill="var(--muted)"
           opacity=".45"
           fontSize="21"
           fontWeight="600"
