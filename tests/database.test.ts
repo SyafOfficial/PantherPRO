@@ -1312,7 +1312,7 @@ async function autoFixture(db: PGlite, options: { ask?: boolean } = {}) {
     version: "vestrado-structure-v1",
     provider: "Vestrado MT5",
     sourceEventId: "1".repeat(64),
-    method: "BOS",
+    method: "QM",
     timeframe: "M15",
     higherTimeframe: "M30",
     direction: "BUY",
@@ -3129,6 +3129,67 @@ test("CH SQL validates independent evidence, publishes atomically and prevents r
     assert.equal(row.strategy, "CH");
     assert.equal(Number(row.stop_loss), plan.stop);
     assert.equal(Number(row.tp1), plan.targets[0]);
+  } finally {
+    await db.close();
+  }
+});
+
+test("BOS/CHOCH base publication rejects early legacy plans, validates wick stops and remains replay-safe", async () => {
+  const { baseSnapshot } = await import("./helpers/base-fixture");
+  const { scanBaseRetests } = await import("../lib/engine/base-retest");
+  const { mt5SnapshotSchema } = await import("../lib/engine/mt5");
+  const db = await setup();
+  try {
+    const now = Date.now() - 10000,
+      snapshot = mt5SnapshotSchema.parse(baseSnapshot(false, true, now)),
+      plan = scanBaseRetests(snapshot, now)[0];
+    assert.ok(plan);
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    const at = new Date(Math.floor(now / 1000) * 1000).toISOString();
+    await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(snapshot),
+      "b".repeat(64),
+      at,
+    ]);
+    const apply = async (p: unknown) =>
+      (
+        await db.query<{ result: { published: number } }>(
+          "select public.apply_automatic_engine($1,$2) result",
+          [at, JSON.stringify([p])],
+        )
+      ).rows[0].result;
+    const { base, ...legacy } = plan;
+    assert.equal((await apply(legacy)).published, 0);
+    await assert.rejects(
+      apply({ ...plan, stop: plan.stop + 3 }),
+      /Structure base retest evidence invalid/,
+    );
+    assert.equal((await apply(plan)).published, 1);
+    assert.equal((await apply(plan)).published, 0);
+    await assert.rejects(
+      db.query("select public.valid_base_retest_plan($1,$2)", [
+        JSON.stringify(snapshot),
+        JSON.stringify(plan),
+      ]),
+      /permission denied/,
+    );
+    await as(db, "admin");
+    const row = (
+      await db.query<{
+        stop_loss: string;
+        entry_low: string;
+        entry_high: string;
+        strategy: string;
+      }>(
+        "select stop_loss,entry_low,entry_high,strategy from public.signals where source='mt5'",
+      )
+    ).rows[0];
+    assert.equal(row.strategy, "CHOCH");
+    assert.equal(Number(row.stop_loss), plan.stop);
+    assert.equal(Number(row.entry_low), plan.zoneLow);
+    assert.equal(Number(row.entry_high), plan.zoneHigh);
   } finally {
     await db.close();
   }

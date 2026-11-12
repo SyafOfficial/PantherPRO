@@ -1,0 +1,383 @@
+[
+  {
+    "timeframe": "M30",
+    "bars": [
+      {
+        "low": 3973.9,
+        "high": 3988.14,
+        "open": 3986.5,
+        "close": 3980.42,
+        "opened_at_server_raw": 1794457800
+      },
+      {
+        "low": 3977.24,
+        "high": 3984.02,
+        "open": 3980.42,
+        "close": 3981.85,
+        "opened_at_server_raw": 1794459600
+      },
+      {
+        "low": 3976.8,
+        "high": 3984.99,
+        "open": 3981.72,
+        "close": 3982.78,
+        "opened_at_server_raw": 1794461400
+      },
+      {
+        "low": 3975.95,
+        "high": 3983.39,
+        "open": 3982.76,
+        "close": 3975.95,
+        "opened_at_server_raw": 1794463200
+      },
+      {
+        "low": 3972.77,
+        "high": 3976.81,
+        "open": 3975.98,
+        "close": 3975.45,
+        "opened_at_server_raw": 1794465000
+      },
+      {
+        "low": 3970.04,
+        "high": 3979.2,
+        "open": 3975.4,
+        "close": 3971.42,
+        "opened_at_server_raw": 1794466800
+      },
+      {
+        "low": 3969.88,
+        "high": 3983.07,
+        "open": 3970.91,
+        "close": 3979.5,
+        "opened_at_server_raw": 1794468600
+      },
+      {
+        "low": 3976.28,
+        "high": 3980.77,
+        "open": 3979.39,
+        "close": 3977.86,
+        "opened_at_server_raw": 1794470400
+      }
+    ]
+  },
+  {
+    "timeframe": "M5",
+    "bars": [
+      {
+        "low": 3981.66,
+        "high": 3988.14,
+        "open": 3986.5,
+        "close": 3982.31,
+        "opened_at_server_raw": 1794457800
+      },
+      {
+        "low": 3977,
+        "high": 3982.92,
+        "open": 3982.31,
+        "close": 3978.49,
+        "opened_at_server_raw": 1794458100
+      },
+      {
+        "low": 3973.9,
+        "high": 3979.13,
+        "open": 3978.34,
+        "close": 3975.92,
+        "opened_at_server_raw": 1794458400
+      },
+      {
+        "low": 3974.55,
+        "high": 3981.73,
+        "open": 3976.1,
+        "close": 3980.45,
+        "opened_at_server_raw": 1794458700
+      },
+      {
+        "low": 3979.76,
+        "high": 3983.06,
+        "open": 3980.39,
+        "close": 3979.77,
+        "opened_at_server_raw": 1794459000
+      },
+      {
+        "low": 3978.99,
+        "high": 3980.76,
+        "open": 3979.76,
+        "close": 3980.42,
+        "opened_at_server_raw": 1794459300
+      },
+      {
+        "low": 3978.63,
+        "high": 3982.64,
+        "open": 3980.42,
+        "close": 3982.02,
+        "opened_at_server_raw": 1794459600
+      },
+      {
+        "low": 3979.84,
+        "high": 3984.02,
+        "open": 3982.09,
+        "close": 3982.42,
+        "opened_at_server_raw": 1794459900
+      },
+      {
+        "low": 3980.22,
+        "high": 3983.68,
+        "open": 3982.48,
+        "close": 3980.95,
+        "opened_at_server_raw": 1794460200
+      },
+      {
+        "low": 3977.87,
+        "high": 3981.27,
+        "open": 3980.96,
+        "close": 3977.88,
+        "opened_at_server_raw": 1794460500
+      },
+      {
+        "low": 3977.24,
+        "high": 3979.01,
+        "open": 3977.87,
+        "close": 3978.88,
+        "opened_at_server_raw": 1794460800
+      },
+      {
+        "low": 3978.14,
+        "high": 3982.01,
+        "open": 3978.87,
+        "close": 3981.85,
+        "opened_at_server_raw": 1794461100
+      },
+      {
+        "low": 3980.57,
+        "high": 3984.48,
+        "open": 3981.72,
+        "close": 3981.05,
+        "opened_at_server_raw": 1794461400
+      },
+      {
+        "low": 3977.66,
+        "high": 3982.58,
+        "open": 3981.06,
+        "close": 3977.79,
+        "opened_at_server_raw": 1794461700
+      },
+      {
+        "low": 3976.8,
+        "high": 3979.54,
+        "open": 3977.78,
+        "close": 3978.6,
+        "opened_at_server_raw": 1794462000
+      },
+      {
+        "low": 3978.13,
+        "high": 3983.24,
+        "open": 3978.61,
+        "close": 3983.24,
+        "opened_at_server_raw": 1794462300
+      },
+      {
+        "low": 3981.63,
+        "high": 3984.99,
+        "open": 3983.12,
+        "close": 3981.85,
+        "opened_at_server_raw": 1794462600
+      },
+      {
+        "low": 3980.45,
+        "high": 3983.27,
+        "open": 3981.87,
+        "close": 3982.78,
+        "opened_at_server_raw": 1794462900
+      },
+      {
+        "low": 3981.7,
+        "high": 3983.39,
+        "open": 3982.76,
+        "close": 3981.87,
+        "opened_at_server_raw": 1794463200
+      },
+      {
+        "low": 3978.19,
+        "high": 3981.83,
+        "open": 3981.83,
+        "close": 3979.16,
+        "opened_at_server_raw": 1794463500
+      },
+      {
+        "low": 3977.58,
+        "high": 3979.89,
+        "open": 3979.14,
+        "close": 3979.54,
+        "opened_at_server_raw": 1794463800
+      },
+      {
+        "low": 3979.15,
+        "high": 3983.28,
+        "open": 3979.55,
+        "close": 3979.25,
+        "opened_at_server_raw": 1794464100
+      },
+      {
+        "low": 3977.96,
+        "high": 3979.84,
+        "open": 3979.23,
+        "close": 3979.46,
+        "opened_at_server_raw": 1794464400
+      },
+      {
+        "low": 3975.95,
+        "high": 3979.65,
+        "open": 3979.47,
+        "close": 3975.95,
+        "opened_at_server_raw": 1794464700
+      },
+      {
+        "low": 3972.96,
+        "high": 3976.33,
+        "open": 3975.98,
+        "close": 3973.51,
+        "opened_at_server_raw": 1794465000
+      },
+      {
+        "low": 3972.77,
+        "high": 3975.43,
+        "open": 3973.5,
+        "close": 3974.45,
+        "opened_at_server_raw": 1794465300
+      },
+      {
+        "low": 3973.26,
+        "high": 3975.3,
+        "open": 3974.45,
+        "close": 3975.3,
+        "opened_at_server_raw": 1794465600
+      },
+      {
+        "low": 3973.22,
+        "high": 3976.2,
+        "open": 3975.36,
+        "close": 3976.04,
+        "opened_at_server_raw": 1794465900
+      },
+      {
+        "low": 3974.21,
+        "high": 3976.81,
+        "open": 3976.04,
+        "close": 3974.39,
+        "opened_at_server_raw": 1794466200
+      },
+      {
+        "low": 3973.63,
+        "high": 3975.7,
+        "open": 3974.37,
+        "close": 3975.45,
+        "opened_at_server_raw": 1794466500
+      },
+      {
+        "low": 3975.22,
+        "high": 3979.17,
+        "open": 3975.4,
+        "close": 3977.35,
+        "opened_at_server_raw": 1794466800
+      },
+      {
+        "low": 3976.46,
+        "high": 3979.18,
+        "open": 3977.36,
+        "close": 3979.18,
+        "opened_at_server_raw": 1794467100
+      },
+      {
+        "low": 3973.14,
+        "high": 3979.2,
+        "open": 3979.2,
+        "close": 3974.2,
+        "opened_at_server_raw": 1794467400
+      },
+      {
+        "low": 3970.94,
+        "high": 3974.42,
+        "open": 3974.21,
+        "close": 3971.1,
+        "opened_at_server_raw": 1794467700
+      },
+      {
+        "low": 3970.28,
+        "high": 3972.41,
+        "open": 3971.11,
+        "close": 3970.72,
+        "opened_at_server_raw": 1794468000
+      },
+      {
+        "low": 3970.04,
+        "high": 3971.56,
+        "open": 3970.71,
+        "close": 3971.42,
+        "opened_at_server_raw": 1794468300
+      },
+      {
+        "low": 3969.88,
+        "high": 3977.84,
+        "open": 3970.91,
+        "close": 3975.62,
+        "opened_at_server_raw": 1794468600
+      },
+      {
+        "low": 3973.4,
+        "high": 3979.08,
+        "open": 3975.6,
+        "close": 3977.17,
+        "opened_at_server_raw": 1794468900
+      },
+      {
+        "low": 3970.85,
+        "high": 3977.74,
+        "open": 3977.36,
+        "close": 3971.57,
+        "opened_at_server_raw": 1794469200
+      },
+      {
+        "low": 3971.64,
+        "high": 3977.45,
+        "open": 3971.65,
+        "close": 3976.41,
+        "opened_at_server_raw": 1794469500
+      },
+      {
+        "low": 3976.14,
+        "high": 3982.51,
+        "open": 3976.4,
+        "close": 3981.15,
+        "opened_at_server_raw": 1794469800
+      },
+      {
+        "low": 3978.02,
+        "high": 3983.07,
+        "open": 3981.14,
+        "close": 3979.5,
+        "opened_at_server_raw": 1794470100
+      },
+      {
+        "low": 3976.68,
+        "high": 3980.76,
+        "open": 3979.39,
+        "close": 3979.99,
+        "opened_at_server_raw": 1794470400
+      },
+      {
+        "low": 3977.46,
+        "high": 3980.77,
+        "open": 3980.08,
+        "close": 3978.62,
+        "opened_at_server_raw": 1794470700
+      },
+      {
+        "low": 3976.28,
+        "high": 3980.77,
+        "open": 3978.6,
+        "close": 3979.35,
+        "opened_at_server_raw": 1794471000
+      }
+    ]
+  }
+]

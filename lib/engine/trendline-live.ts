@@ -1,3 +1,4 @@
+import { scanBaseRetests } from "./base-retest";
 import { scanCh } from "./ch";
 import { scanHns } from "./hns";
 import { createHash } from "node:crypto";
@@ -101,7 +102,10 @@ export function scanLiveAutomatic(raw: unknown, now: number) {
   for (const p of [
     ...scanHns(snapshot, now),
     ...scanCh(snapshot, now),
-    ...result.plans.filter((p) => p.method !== "TRENDLINE"),
+    ...scanBaseRetests(snapshot, now),
+    ...result.plans.filter(
+      (p) => !["TRENDLINE", "BOS", "CHOCH"].includes(p.method),
+    ),
   ]) {
     const key = `${p.timeframe}:${p.direction}:${p.confirmationOpenedServer}`;
     if (!hnsKeys.has(key)) {
