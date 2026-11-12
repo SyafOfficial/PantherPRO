@@ -237,16 +237,23 @@ test("trendline requires two confirmed rising anchors and third-touch candle rej
   );
 });
 
-test("live adapter preserves BOS rules while removing legacy trendline candidates", async () => {
+test("live adapter rejects legacy BOS without an origin-base retest and preserves other evidence paths", async () => {
   const { scanLiveAutomatic } = await import("../lib/engine/trendline-live");
   const s = fixture();
   const legacy = scanAutomatic(s, now).plans.filter(
     (p) => p.method !== "TRENDLINE",
   );
   const live = scanLiveAutomatic(s, now).plans;
+  assert.ok(legacy.some((p) => p.method === "BOS"));
+  assert.equal(
+    live.some((p) => p.method === "BOS" || p.method === "CHOCH"),
+    false,
+  );
   assert.deepEqual(
-    live.filter((p) => p.method !== "TRENDLINE"),
-    legacy,
+    live.filter(
+      (p) => !["TRENDLINE", "BOS", "CHOCH", "HNS", "CH"].includes(p.method),
+    ),
+    legacy.filter((p) => !["BOS", "CHOCH"].includes(p.method)),
   );
   assert.ok(live.every((p) => p.method !== "TRENDLINE" || "trendline" in p));
 });
