@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { TIMEFRAMES } from "../strategy";
+import { STRATEGIES, TIMEFRAMES } from "../strategy";
 
 export const setupFrames = TIMEFRAMES;
 const candleSchema = z
@@ -43,7 +43,8 @@ export const setupInputSchema = z
     id: z.string().min(1).max(150),
     provider: z.string().min(1),
     timeframe: z.enum(setupFrames),
-    method: z.enum(["QM", "BOS", "CHOCH", "TRENDLINE", "HNS", "CH"]),
+    // SBR/RBS have their own evidence-based stop builder, never this buffer path.
+    method: z.enum(STRATEGIES).exclude(["SBR", "RBS"]),
     direction: z.enum(["BUY", "SELL"]),
     zoneLow: z.number().positive().finite(),
     zoneHigh: z.number().positive().finite(),
@@ -74,7 +75,7 @@ export type Candidate = {
   execution: "hypothetical";
   provider: string;
   timeframe: (typeof setupFrames)[number];
-  method: z.output<typeof setupInputSchema>["method"];
+  method: (typeof STRATEGIES)[number];
 };
 const tolerance = 1e-8;
 export function buildCandidate(raw: SetupInput, now: number): Candidate {

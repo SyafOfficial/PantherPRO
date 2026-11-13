@@ -2,10 +2,13 @@ import { scanTickVolume } from "./tick-volume";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AutomaticPlan } from "./automatic";
 import { scanLiveAutomatic } from "./trendline-live";
+import { ROLE_REVERSAL_VERSION } from "./role-reversal";
 export async function automaticEngineCycle(db: SupabaseClient) {
   const { data: policy, error: policyError } = await db
     .from("automatic_engine_policy")
-    .select("enabled,version")
+    // Additive capability marker is absent before the SBR/RBS migration.
+    // Reading the row keeps old schemas usable without a failing column query.
+    .select("*")
     .eq("singleton", true)
     .single();
   // Existing deployments remain usable before migration 011 is applied.
@@ -23,8 +26,23 @@ export async function automaticEngineCycle(db: SupabaseClient) {
     return { available: true, reason: "feed_unavailable_or_stale" };
   let plans: AutomaticPlan[] = [];
   try {
-    if (policy.enabled)
-      plans = scanLiveAutomatic(feed.snapshot, Date.now()).plans;
+    if (policy.enabled) {
+      const scan = scanLiveAutomatic(feed.snapshot, Date.now(), {
+        roleReversals:
+          policy.role_reversal_schema_version === ROLE_REVERSAL_VERSION,
+      });
+      plans = scan.plans;
+      // Bounded market-only rejection diagnostics persist in worker logs; never log snapshots/accounts.
+      const reasons = scan.reasons.filter((r) => /^(SBR|RBS)/.test(r));
+      if (reasons.length)
+        console.info(
+          JSON.stringify({
+            event: "engine.sbr_rbs_rejected",
+            exportTime: feed.exported_at,
+            reasons,
+          }),
+        );
+    }
   } catch {
     return { available: true, reason: "snapshot_not_eligible" };
   }

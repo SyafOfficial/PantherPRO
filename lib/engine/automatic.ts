@@ -54,7 +54,7 @@ export function methodTriggers(
   const breakBar = prefix.at(-1)!;
   const pivots = confirmedPivots(prefix.slice(0, -1), 2);
   const triggers: Array<{
-    method: AutomaticPlan["method"];
+    method: SetupInput["method"];
     buy: boolean;
     level: number;
     anchor: number;

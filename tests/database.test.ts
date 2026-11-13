@@ -3194,3 +3194,187 @@ test("BOS/CHOCH base publication rejects early legacy plans, validates wick stop
     await db.close();
   }
 });
+
+test("SBR/RBS publication is atomic, independently validated, overlap-safe, audited and replay-safe", async () => {
+  const { roleReversalSnapshot } =
+    await import("./helpers/role-reversal-fixture");
+  const { scanRoleReversals } = await import("../lib/engine/role-reversal");
+  const { mt5SnapshotSchema } = await import("../lib/engine/mt5");
+  for (const buy of [true, false]) {
+    const db = await setup();
+    try {
+      const now = Date.now() - 10000,
+        snapshot = mt5SnapshotSchema.parse(roleReversalSnapshot(buy, now)),
+        plan = scanRoleReversals(snapshot, now).plans[0];
+      assert.ok(plan);
+      assert.ok(Math.abs(plan.entry - plan.stop) > 5);
+      await as(db, "admin");
+      await db.query("select public.set_automatic_engine(true)");
+      await as(db, "service_role");
+      const at = new Date(Math.floor(now / 1000) * 1000).toISOString();
+      await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+        JSON.stringify(snapshot),
+        "c".repeat(64),
+        at,
+      ]);
+      const apply = async (plans: unknown[]) =>
+        (
+          await db.query<{ result: { published: number } }>(
+            "select public.apply_automatic_engine($1,$2) result",
+            [at, JSON.stringify(plans)],
+          )
+        ).rows[0].result;
+      // Invalid new plans must never partially publish even with an earlier valid item.
+      await assert.rejects(
+        apply([
+          plan,
+          {
+            ...plan,
+            timeframe: "M30",
+            sourceEventId: "f".repeat(64),
+            stop: plan.entry,
+          },
+        ]),
+        /SBR\/RBS/,
+      );
+      assert.equal(
+        (
+          await db.query<{ n: number }>(
+            "select count(*)::int n from public.signals where source='mt5'",
+          )
+        ).rows[0].n,
+        0,
+      );
+      await assert.rejects(
+        apply([{ ...plan, stop: buy ? plan.zoneLow - 3 : plan.zoneHigh + 3 }]),
+        /SBR\/RBS/,
+      );
+      await assert.rejects(
+        apply([
+          {
+            ...plan,
+            targets: [
+              plan.targets[0] + (buy ? 1 : -1),
+              plan.targets[1],
+              plan.targets[2],
+            ],
+          },
+        ]),
+        /Higher timeframe targets mismatch/,
+      );
+      await assert.rejects(
+        apply([
+          {
+            ...plan,
+            roleReversal: {
+              ...plan.roleReversal,
+              reference: {
+                ...plan.roleReversal.reference,
+                opened_at_server_raw: plan.breakoutOpenedServer,
+              },
+            },
+          },
+        ]),
+        /SBR\/RBS/,
+      );
+      assert.equal((await apply([plan])).published, 1);
+      assert.equal((await apply([plan])).published, 0);
+      // Same physical break from an older BOS/CHOCH worker cannot republish.
+      assert.equal(
+        (
+          await apply([
+            { ...plan, method: "BOS", sourceEventId: "d".repeat(64), base: {} },
+          ])
+        ).published,
+        0,
+      );
+      // A changed confirmation on the same anchored setup is still one publication.
+      assert.equal(
+        (
+          await apply([
+            {
+              ...plan,
+              confirmationOpenedServer: plan.confirmationOpenedServer + 300,
+            },
+          ])
+        ).published,
+        0,
+      );
+      await as(db, "admin");
+      const row = (
+        await db.query<{
+          strategy: string;
+          stop_loss: string;
+          details: { roleReversal: unknown; targetReasons: unknown };
+        }>(
+          "select s.strategy,s.stop_loss,a.details from public.signals s join public.audit_logs a on a.entity_id=s.id where a.action='engine.signal_published'",
+        )
+      ).rows[0];
+      assert.equal(row.strategy, buy ? "RBS" : "SBR");
+      assert.equal(Number(row.stop_loss), plan.stop);
+      assert.deepEqual(row.details.roleReversal, plan.roleReversal);
+      assert.deepEqual(row.details.targetReasons, plan.targetReasons);
+      await as(db, "service_role");
+      assert.equal(
+        (
+          await db.query<{ n: number }>(
+            "select count(*)::int n from public.notification_outbox where event_type='signal.active'",
+          )
+        ).rows[0].n,
+        1,
+      );
+      await assert.rejects(
+        db.query("select public.valid_role_reversal_plan($1,$2)", [
+          JSON.stringify(snapshot),
+          JSON.stringify(plan),
+        ]),
+        /permission denied/,
+      );
+    } finally {
+      await db.close();
+    }
+  }
+});
+
+test("existing BOS publication suppresses the same SBR/RBS break during rolling upgrade", async () => {
+  const { roleReversalSnapshot } =
+    await import("./helpers/role-reversal-fixture");
+  const { scanRoleReversals } = await import("../lib/engine/role-reversal");
+  const { scanBaseRetests } = await import("../lib/engine/base-retest");
+  const { mt5SnapshotSchema } = await import("../lib/engine/mt5");
+  const db = await setup();
+  try {
+    const now = Date.now() - 10000,
+      raw = roleReversalSnapshot(true, now);
+    Object.assign(raw.series[1].candles[26], { open: 72, close: 71.8 });
+    raw.series[0].candles.at(-1)!.low = 71.8;
+    raw.quote.bid = 71.85;
+    raw.quote.ask = 71.95;
+    const snapshot = mt5SnapshotSchema.parse(raw),
+      old = scanBaseRetests(snapshot, now)[0],
+      plan = scanRoleReversals(snapshot, now).plans[0];
+    assert.ok(old);
+    assert.ok(plan);
+    assert.equal(old.breakoutOpenedServer, plan.breakoutOpenedServer);
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    const at = new Date(Math.floor(now / 1000) * 1000).toISOString();
+    await db.query("select public.ingest_mt5_snapshot($1,$2,$3)", [
+      JSON.stringify(snapshot),
+      "e".repeat(64),
+      at,
+    ]);
+    const apply = async (p: unknown) =>
+      (
+        await db.query<{ result: { published: number } }>(
+          "select public.apply_automatic_engine($1,$2) result",
+          [at, JSON.stringify([p])],
+        )
+      ).rows[0].result;
+    assert.equal((await apply(old)).published, 1);
+    assert.equal((await apply(plan)).published, 0);
+  } finally {
+    await db.close();
+  }
+});

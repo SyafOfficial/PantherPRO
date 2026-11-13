@@ -17,6 +17,14 @@ export const signalSchema = z
   })
   .superRefine((s, ctx) => {
     if (
+      (s.strategy === "SBR" && s.direction !== "SELL") ||
+      (s.strategy === "RBS" && s.direction !== "BUY")
+    )
+      ctx.addIssue({
+        code: "custom",
+        message: "SBR requires SELL; RBS requires BUY.",
+      });
+    if (
       (s.strategy === "HNS" || s.strategy === "CH") &&
       !["M15", "M30", "H1", "H4"].includes(s.timeframe ?? "")
     )

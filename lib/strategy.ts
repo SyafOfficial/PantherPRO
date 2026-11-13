@@ -5,6 +5,8 @@ export const STRATEGIES = [
   "TRENDLINE",
   "HNS",
   "CH",
+  "SBR",
+  "RBS",
 ] as const;
 export const TIMEFRAMES = ["M15", "M30", "H1", "H4", "W1", "MN1"] as const;
 export const TIMEFRAME_MINUTES = {
@@ -23,4 +25,6 @@ export const STRATEGY_LABELS = {
   TRENDLINE: "Trendline",
   HNS: "HNS · Head and Shoulders",
   CH: "CH · Cup and Handle",
+  SBR: "SBR · Support Becomes Resistance",
+  RBS: "RBS · Resistance Becomes Support",
 };

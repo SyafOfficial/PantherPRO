@@ -1,3 +1,4 @@
+import { scanRoleReversals } from "./role-reversal";
 import { scanBaseRetests } from "./base-retest";
 import { scanCh } from "./ch";
 import { scanHns } from "./hns";
@@ -94,14 +95,24 @@ export function makeTrendlinePlan(
     },
   };
 }
-export function scanLiveAutomatic(raw: unknown, now: number) {
+export function scanLiveAutomatic(
+  raw: unknown,
+  now: number,
+  options: { roleReversals?: boolean } = {},
+) {
   const result = scanAutomatic(raw, now);
   const snapshot = mt5SnapshotSchema.parse(raw);
+  const reversal =
+    options.roleReversals === false
+      ? { plans: [], reasons: [] }
+      : scanRoleReversals(snapshot, now);
   const structural: AutomaticPlan[] = [];
   const hnsKeys = new Set<string>();
   for (const p of [
     ...scanHns(snapshot, now),
     ...scanCh(snapshot, now),
+    // Specific level flips precede overlapping BOS/CHOCH; retain one plan per confirmation.
+    ...reversal.plans,
     ...scanBaseRetests(snapshot, now),
     ...result.plans.filter(
       (p) => !["TRENDLINE", "BOS", "CHOCH"].includes(p.method),
@@ -129,5 +140,9 @@ export function scanLiveAutomatic(raw: unknown, now: number) {
       seen.add(key);
     }
   }
-  return { ...result, plans };
+  return {
+    ...result,
+    plans,
+    reasons: [...result.reasons, ...reversal.reasons],
+  };
 }

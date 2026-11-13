@@ -156,11 +156,28 @@ export function hnsRejection(
   serverTime: number,
   point: number,
 ) {
+  return levelRetestRejection(
+    (at) => hnsNeckline(pattern, at),
+    pattern.direction === "BUY",
+    m5,
+    setupEnd,
+    serverTime,
+    point,
+  );
+}
+/** Shared completed-M5 level rejection; HNS uses its sloped neckline. */
+export function levelRetestRejection(
+  levelAt: (at: number) => number,
+  buy: boolean,
+  m5: HnsBar[],
+  setupEnd: number,
+  serverTime: number,
+  point: number,
+) {
   const c = m5.at(-1),
     previous = m5.at(-2);
   if (!c || !previous || !validBars(m5)) return false;
-  const buy = pattern.direction === "BUY",
-    sign = buy ? 1 : -1;
+  const sign = buy ? 1 : -1;
   if (
     c.opened_at_server_raw < setupEnd ||
     c.opened_at_server_raw + 300 > serverTime ||
@@ -168,7 +185,7 @@ export function hnsRejection(
     previous.opened_at_server_raw + 300 !== c.opened_at_server_raw
   )
     return false;
-  const level = hnsNeckline(pattern, c.opened_at_server_raw),
+  const level = levelAt(c.opened_at_server_raw),
     range = c.high - c.low;
   if (
     range <= 0 ||
@@ -177,8 +194,7 @@ export function hnsRejection(
     sign * (c.close - c.open) < range * HNS_POLICY.rejectionBody ||
     (buy ? c.close - c.low : c.high - c.close) / range <
       HNS_POLICY.rejectionClose ||
-    sign * (c.close - hnsNeckline(pattern, c.opened_at_server_raw + 300)) <=
-      point * 2 ||
+    sign * (c.close - levelAt(c.opened_at_server_raw + 300)) <= point * 2 ||
     (buy ? c.close <= previous.high : c.close >= previous.low)
   )
     return false;
@@ -187,8 +203,7 @@ export function hnsRejection(
     (b) =>
       b !== c &&
       b.opened_at_server_raw >= setupEnd &&
-      sign * (b.close - hnsNeckline(pattern, b.opened_at_server_raw + 300)) <
-        -point * 2,
+      sign * (b.close - levelAt(b.opened_at_server_raw + 300)) < -point * 2,
   );
 }
 export type HnsPlan = AutomaticPlan & {

@@ -378,6 +378,15 @@ test("phone install guidance, method filters and macro education work without fa
   await expect(
     page.getByRole("heading", { name: "No signals in this view" }),
   ).toBeVisible();
+  for (const method of ["SBR", "RBS"]) {
+    await page.getByLabel("Strategy", { exact: true }).selectOption(method);
+    await expect(page.getByLabel("Strategy", { exact: true })).toHaveValue(
+      method,
+    );
+    await expect(
+      page.getByRole("heading", { name: "No signals in this view" }),
+    ).toBeVisible();
+  }
   await page
     .getByLabel("Strategy", { exact: true })
     .selectOption("All strategies");
