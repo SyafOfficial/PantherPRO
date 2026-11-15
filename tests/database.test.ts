@@ -3378,3 +3378,128 @@ test("existing BOS publication suppresses the same SBR/RBS break during rolling 
     await db.close();
   }
 });
+
+test("Telegram relay independently captures future published signal events, skips history/orphans, fences leases and never consumes app notifications", async () => {
+  const db = await setup();
+  try {
+    await as(db, "admin");
+    await db.query("select public.set_automatic_engine(true)");
+    await as(db, "service_role");
+    const f = await autoFixture(db),
+      at = await f.put();
+    const apply = async (plan: unknown) =>
+      (
+        await db.query<{ r: { published: number } }>(
+          "select public.apply_automatic_engine($1,$2) r",
+          [at, JSON.stringify([plan])],
+        )
+      ).rows[0].r;
+    assert.equal((await apply(f.plan)).published, 1);
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select public.prepare_telegram_signal_events() n",
+        )
+      ).rows[0].n,
+      0,
+    );
+    const old = (
+      await db.query<{ id: string }>(
+        "select id from public.signals where source_event_id=$1",
+        [f.plan.sourceEventId],
+      )
+    ).rows[0].id;
+    await db.query(
+      "update public.telegram_signal_policy set enabled=true,starts_at=clock_timestamp() where singleton",
+    );
+    const next = { ...f.plan, sourceEventId: "2".repeat(64) };
+    assert.equal((await apply(next)).published, 1);
+    const fresh = (
+      await db.query<{ id: string }>(
+        "select id from public.signals where source_event_id=$1",
+        [next.sourceEventId],
+      )
+    ).rows[0].id;
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select public.prepare_telegram_signal_events() n",
+        )
+      ).rows[0].n,
+      1,
+    );
+    await db.query(
+      "insert into public.notification_outbox(event_key,signal_id,event_type,access) values($1,$2,'signal.tp1','public'),($3,$4,'signal.tp1','public')",
+      [fresh + ":relay-tp1", fresh, old + ":relay-tp1", old],
+    );
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select public.prepare_telegram_signal_events() n",
+        )
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select public.prepare_telegram_signal_events() n",
+        )
+      ).rows[0].n,
+      0,
+    );
+    const queue = (
+      await db.query<{
+        outbox_id: string;
+        signal_id: string;
+        event_type: string;
+        lease_token: string;
+        payload: { eventId: string; signalId: string };
+      }>("select * from public.claim_telegram_signal_events(5)")
+    ).rows;
+    assert.equal(queue.length, 2);
+    assert.equal(queue[0].event_type, "signal.active");
+    assert.equal(queue[1].event_type, "signal.tp1");
+    assert.equal(queue[0].signal_id, fresh);
+    assert.equal(queue[0].payload.eventId, queue[0].outbox_id);
+    assert.equal(queue[0].payload.signalId, fresh);
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.finish_telegram_signal_event($1,$2,'delivered',123,null) ok",
+          [queue[0].outbox_id, queue[0].lease_token],
+        )
+      ).rows[0].ok,
+      true,
+    );
+    assert.equal(
+      (
+        await db.query<{ ok: boolean }>(
+          "select public.finish_telegram_signal_event($1,$2,'retry',null,null) ok",
+          [queue[1].outbox_id, "00000000-0000-4000-8000-000000000000"],
+        )
+      ).rows[0].ok,
+      false,
+    );
+    assert.equal(
+      (
+        await db.query<{ n: number }>(
+          "select count(*)::int n from public.notification_outbox where signal_id=$1 and state='pending'",
+          [fresh],
+        )
+      ).rows[0].n,
+      2,
+    );
+    await as(db, "public");
+    await assert.rejects(
+      db.query("select * from public.telegram_signal_queue"),
+      /permission denied/,
+    );
+    await assert.rejects(
+      db.query("select public.claim_telegram_signal_events(1)"),
+      /permission denied/,
+    );
+  } finally {
+    await db.close();
+  }
+});

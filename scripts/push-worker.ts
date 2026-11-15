@@ -1,3 +1,4 @@
+import { createTelegramRelayCycle } from "../lib/telegram-relay";
 import { serviceFetch } from "../lib/service-fetch";
 import { createEngineRunner } from "../lib/engine/cycle-runner";
 import { clientPushDetails } from "../lib/client-push";
@@ -299,6 +300,7 @@ async function cycle() {
   await rpc("finalize_push_events");
   return deliveries.length;
 }
+const telegramRelayCycle = createTelegramRelayCycle(db);
 let stopping = false;
 process.on("SIGINT", () => {
   stopping = true;
@@ -313,6 +315,18 @@ async function main() {
       "Worker task failed; retrying without blocking other tasks. No credentials or endpoints logged.",
     );
   await Promise.all([
+    runWorkerLoop(telegramRelayCycle, {
+      idleMs: 1500,
+      once,
+      stopped: () => stopping,
+      onError: () =>
+        console.warn(
+          JSON.stringify({
+            component: "telegram_signal_relay",
+            state: "cycle_failed",
+          }),
+        ),
+    }),
     runWorkerLoop(cycle, {
       idleMs: 250,
       busyMs: 0,
