@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AutomaticPlan } from "./automatic";
 import { scanLiveAutomatic } from "./trendline-live";
 import { ROLE_REVERSAL_VERSION } from "./role-reversal";
+let lastScanDiagnosticAt = 0;
 export async function automaticEngineCycle(db: SupabaseClient) {
   const { data: policy, error: policyError } = await db
     .from("automatic_engine_policy")
@@ -32,6 +33,17 @@ export async function automaticEngineCycle(db: SupabaseClient) {
           policy.role_reversal_schema_version === ROLE_REVERSAL_VERSION,
       });
       plans = scan.plans;
+      // Bounded counters only: no snapshots, credentials or account data.
+      if (Date.now() - lastScanDiagnosticAt >= 60_000) {
+        lastScanDiagnosticAt = Date.now();
+        console.info(
+          JSON.stringify({
+            event: "engine.scan_diagnostics",
+            exportTime: feed.exported_at,
+            ...scan.diagnostics,
+          }),
+        );
+      }
       // Bounded market-only rejection diagnostics persist in worker logs; never log snapshots/accounts.
       const reasons = scan.reasons.filter((r) => /^(SBR|RBS)/.test(r));
       if (reasons.length)

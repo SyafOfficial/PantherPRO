@@ -108,3 +108,23 @@ test("live scanner cannot leak the legacy M5 zone for BOS/CHOCH", async () => {
   for (const plan of plans.filter((p) => ["BOS", "CHOCH"].includes(p.method)))
     assert.ok("base" in plan);
 });
+
+test("base diagnostics identify blocked gates without changing eligible plans", () => {
+  const now = Date.now();
+  for (const buy of [true, false]) {
+    const snapshot = mt5SnapshotSchema.parse(baseSnapshot(buy, false, now));
+    const gates: Record<string, number> = {};
+    assert.deepEqual(
+      scanBaseRetests(snapshot, now, gates),
+      scanBaseRetests(snapshot, now),
+    );
+    assert.ok(gates["BOS.M15.candidate_ready"] > 0);
+    const outside = structuredClone(snapshot);
+    outside.quote.bid = 50;
+    outside.quote.ask = 50.1;
+    const blocked: Record<string, number> = {};
+    assert.deepEqual(scanBaseRetests(outside, now, blocked), []);
+    assert.ok(blocked["BOS.M15.entry_stop_or_width_rejected"] > 0);
+    assert.equal(blocked["BOS.M15.candidate_ready"], undefined);
+  }
+});

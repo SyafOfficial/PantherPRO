@@ -106,14 +106,18 @@ export function scanLiveAutomatic(
     options.roleReversals === false
       ? { plans: [], reasons: [] }
       : scanRoleReversals(snapshot, now);
+  const baseGates: Record<string, number> = {};
+  const basePlans = scanBaseRetests(snapshot, now, baseGates);
+  const hnsPlans = scanHns(snapshot, now);
+  const chPlans = scanCh(snapshot, now);
   const structural: AutomaticPlan[] = [];
   const hnsKeys = new Set<string>();
   for (const p of [
-    ...scanHns(snapshot, now),
-    ...scanCh(snapshot, now),
+    ...hnsPlans,
+    ...chPlans,
     // Specific level flips precede overlapping BOS/CHOCH; retain one plan per confirmation.
     ...reversal.plans,
-    ...scanBaseRetests(snapshot, now),
+    ...basePlans,
     ...result.plans.filter(
       (p) => !["TRENDLINE", "BOS", "CHOCH"].includes(p.method),
     ),
@@ -144,5 +148,17 @@ export function scanLiveAutomatic(
     ...result,
     plans,
     reasons: [...result.reasons, ...reversal.reasons],
+    diagnostics: {
+      baseGates,
+      candidates: {
+        HNS: hnsPlans.length,
+        CH: chPlans.length,
+        roleReversals: reversal.plans.length,
+        baseRetests: basePlans.length,
+        legacy: result.plans.length,
+        trendlineProposals: proposals.length,
+        final: plans.length,
+      },
+    },
   };
 }

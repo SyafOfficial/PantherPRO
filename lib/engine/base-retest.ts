@@ -159,7 +159,14 @@ export type BasePlan = AutomaticPlan & {
     anchor: number;
   };
 };
-export function scanBaseRetests(s: Snapshot, now: number): BasePlan[] {
+export function scanBaseRetests(
+  s: Snapshot,
+  now: number,
+  diagnostics?: Record<string, number>,
+): BasePlan[] {
+  const count = (key: string) => {
+    if (diagnostics) diagnostics[key] = (diagnostics[key] ?? 0) + 1;
+  };
   if (!inspectMt5Snapshot(s, now).freshness.usableCurrentQuote) return [];
   const m5 = s.series
       .find((v) => v.timeframe === "M5")!
@@ -189,10 +196,19 @@ export function scanBaseRetests(s: Snapshot, now: number): BasePlan[] {
       const structure = detectStructure(bars.slice(0, index + 1));
       for (const trigger of structure.breaks) {
         const buy = trigger.direction === "BUY";
-        if (higher && trend !== (buy ? "up" : "down")) continue;
+        const gate = (reason: string) =>
+          count(`${trigger.method}.${frame}.${reason}`);
+        gate("structure_break");
+        if (higher && trend !== (buy ? "up" : "down")) {
+          gate("higher_context_rejected");
+          continue;
+        }
         const base = originBase(bars, index, buy, trigger.level, s.point);
+        if (!base) {
+          gate("origin_base_rejected");
+          continue;
+        }
         if (
-          !base ||
           !baseRejection(
             base,
             m5,
@@ -201,16 +217,20 @@ export function scanBaseRetests(s: Snapshot, now: number): BasePlan[] {
             s.point,
             buy,
           )
-        )
+        ) {
+          gate("retest_rejection_missing");
           continue;
+        }
         if (
           bars
             .slice(index + 1)
             .some((b) =>
               buy ? b.close <= base.wickLow : b.close >= base.wickHigh,
             )
-        )
+        ) {
+          gate("base_invalidated");
           continue;
+        }
         const entry = buy ? s.quote.ask : s.quote.bid,
           stop = buy ? base.wickLow : base.wickHigh;
         if (
@@ -219,15 +239,19 @@ export function scanBaseRetests(s: Snapshot, now: number): BasePlan[] {
           (buy ? entry <= stop : entry >= stop) ||
           base.zoneHigh - base.zoneLow >
             VESTRADO_RULES.maxZonePips * VESTRADO_RULES.pipSize
-        )
+        ) {
+          gate("entry_stop_or_width_rejected");
           continue;
+        }
         if (
           !buy &&
           !(s.ask_m5 ?? []).some(
             (b) => b.opened_at_server_raw === c.opened_at_server_raw,
           )
-        )
+        ) {
+          gate("ask_confirmation_missing");
           continue;
+        }
         const targets = targetEvidence(
           s,
           frame,
@@ -236,7 +260,11 @@ export function scanBaseRetests(s: Snapshot, now: number): BasePlan[] {
           base.zoneHigh,
           c.opened_at_server_raw + 300,
         );
-        if (!targets) continue;
+        if (!targets) {
+          gate("structural_targets_missing");
+          continue;
+        }
+        gate("candidate_ready");
         const id = createHash("sha256")
           .update(
             [
