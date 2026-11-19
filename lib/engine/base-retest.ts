@@ -14,6 +14,7 @@ export type BaseBar = Pick<
   Snapshot["series"][number]["candles"][number],
   "opened_at_server_raw" | "open" | "high" | "low" | "close"
 >;
+export const WAITING_ENTRY_VERSION = "base-waiting-v1";
 export const BASE_RETEST_VERSION = "structure-base-v2";
 export type OriginBase = {
   start: number;
@@ -150,6 +151,7 @@ export function baseBarEnd(b: BaseBar, frame: string) {
   return b.opened_at_server_raw + seconds[frame];
 }
 export type BasePlan = AutomaticPlan & {
+  entryState?: "waiting";
   base: {
     version: typeof BASE_RETEST_VERSION;
     start: number;
@@ -163,6 +165,7 @@ export function scanBaseRetests(
   s: Snapshot,
   now: number,
   diagnostics?: Record<string, number>,
+  allowWaiting = false,
 ): BasePlan[] {
   const count = (key: string) => {
     if (diagnostics) diagnostics[key] = (diagnostics[key] ?? 0) + 1;
@@ -232,15 +235,23 @@ export function scanBaseRetests(
           continue;
         }
         const entry = buy ? s.quote.ask : s.quote.bid,
-          stop = buy ? base.wickLow : base.wickHigh;
+          stop = buy ? base.wickLow : base.wickHigh,
+          outside = entry < base.zoneLow || entry > base.zoneHigh,
+          plannedEntry = outside ? (buy ? base.zoneHigh : base.zoneLow) : entry;
         if (
-          entry < base.zoneLow ||
-          entry > base.zoneHigh ||
-          (buy ? entry <= stop : entry >= stop) ||
+          (buy ? plannedEntry <= stop : plannedEntry >= stop) ||
           base.zoneHigh - base.zoneLow >
             VESTRADO_RULES.maxZonePips * VESTRADO_RULES.pipSize
         ) {
           gate("entry_stop_or_width_rejected");
+          continue;
+        }
+        if (
+          outside &&
+          (!allowWaiting ||
+            (buy ? entry <= base.zoneHigh : entry >= base.zoneLow))
+        ) {
+          gate("entry_outside_base");
           continue;
         }
         if (
@@ -264,7 +275,17 @@ export function scanBaseRetests(
           gate("structural_targets_missing");
           continue;
         }
-        gate("candidate_ready");
+        // A waiting setup is not an observed fill; do not advertise a target already passed.
+        if (
+          outside &&
+          (buy
+            ? s.quote.bid >= targets.obstacles[0].price
+            : s.quote.ask <= targets.obstacles[0].price)
+        ) {
+          gate("target_reached_before_entry");
+          continue;
+        }
+        gate(outside ? "waiting_ready" : "candidate_ready");
         const id = createHash("sha256")
           .update(
             [
@@ -289,7 +310,8 @@ export function scanBaseRetests(
           direction: trigger.direction,
           zoneLow: base.zoneLow,
           zoneHigh: base.zoneHigh,
-          entry,
+          entry: plannedEntry,
+          ...(outside ? { entryState: "waiting" as const } : {}),
           stop,
           targets: [
             targets.obstacles[0].price,

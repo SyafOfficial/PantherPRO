@@ -54,7 +54,7 @@ export default async function Page({
       db
         .from("signals")
         .select("*")
-        .in("status", ["active", "closed"])
+        .in("status", ["pending", "active", "closed"])
         .eq("client_desk_visible", true)
         .or(
           `status.eq.active,published_at.gt.${new Date(Date.now() - 30 * 86400000).toISOString()}`,

@@ -98,7 +98,7 @@ export function makeTrendlinePlan(
 export function scanLiveAutomatic(
   raw: unknown,
   now: number,
-  options: { roleReversals?: boolean } = {},
+  options: { roleReversals?: boolean; waitingEntries?: boolean } = {},
 ) {
   const result = scanAutomatic(raw, now);
   const snapshot = mt5SnapshotSchema.parse(raw);
@@ -107,7 +107,12 @@ export function scanLiveAutomatic(
       ? { plans: [], reasons: [] }
       : scanRoleReversals(snapshot, now);
   const baseGates: Record<string, number> = {};
-  const basePlans = scanBaseRetests(snapshot, now, baseGates);
+  const basePlans = scanBaseRetests(
+    snapshot,
+    now,
+    baseGates,
+    options.waitingEntries === true,
+  );
   const hnsPlans = scanHns(snapshot, now);
   const chPlans = scanCh(snapshot, now);
   const structural: AutomaticPlan[] = [];

@@ -286,7 +286,13 @@ export default async function Admin({
               <article className="admin-signal" key={s.id}>
                 <h3>
                   {s.instrument} · {s.direction}
-                  <span className="outline-tag">{s.status}</span>
+                  <span className="outline-tag">
+                    {s.entry_phase === "waiting"
+                      ? "WAITING FOR ENTRY"
+                      : s.entry_phase === "cancelled"
+                        ? "CANCELLED · NO ENTRY"
+                        : s.status}
+                  </span>
                 </h3>
                 <p>
                   Entry {s.entry} · SL {s.stop_loss}
@@ -295,13 +301,15 @@ export default async function Admin({
                 </p>
                 <p>{s.reasoning}</p>
                 <div className="admin-actions">
-                  {(s.status === "draft"
-                    ? ["pending"]
-                    : s.status === "pending"
-                      ? ["active", "closed"]
-                      : s.status === "active"
-                        ? ["closed"]
-                        : []
+                  {(s.entry_phase === "waiting"
+                    ? []
+                    : s.status === "draft"
+                      ? ["pending"]
+                      : s.status === "pending"
+                        ? ["active", "closed"]
+                        : s.status === "active"
+                          ? ["closed"]
+                          : []
                   ).map((next) => (
                     <form action={transitionSignal} key={next}>
                       <input type="hidden" name="id" value={s.id} />

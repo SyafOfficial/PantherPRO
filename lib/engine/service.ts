@@ -2,6 +2,7 @@ import { scanTickVolume } from "./tick-volume";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AutomaticPlan } from "./automatic";
 import { scanLiveAutomatic } from "./trendline-live";
+import { WAITING_ENTRY_VERSION } from "./base-retest";
 import { ROLE_REVERSAL_VERSION } from "./role-reversal";
 let lastScanDiagnosticAt = 0;
 export async function automaticEngineCycle(db: SupabaseClient) {
@@ -29,6 +30,7 @@ export async function automaticEngineCycle(db: SupabaseClient) {
   try {
     if (policy.enabled) {
       const scan = scanLiveAutomatic(feed.snapshot, Date.now(), {
+        waitingEntries: policy.base_entry_mode === WAITING_ENTRY_VERSION,
         roleReversals:
           policy.role_reversal_schema_version === ROLE_REVERSAL_VERSION,
       });

@@ -124,7 +124,7 @@ test("base diagnostics identify blocked gates without changing eligible plans", 
     outside.quote.ask = 50.1;
     const blocked: Record<string, number> = {};
     assert.deepEqual(scanBaseRetests(outside, now, blocked), []);
-    assert.ok(blocked["BOS.M15.entry_stop_or_width_rejected"] > 0);
+    assert.ok(blocked["BOS.M15.entry_outside_base"] > 0);
     assert.equal(blocked["BOS.M15.candidate_ready"], undefined);
   }
 });

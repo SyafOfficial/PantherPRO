@@ -87,7 +87,10 @@ export function notificationPayload(
     title = "Original SL reached";
     body = "50-pip BE alert was issued earlier. Check your managed position.";
   }
-  if (delivery.event_type === "signal.active" && signal) {
+  if (
+    ["signal.active", "signal.waiting"].includes(delivery.event_type) &&
+    signal
+  ) {
     const values = [
       signal.entry,
       signal.stop_loss,
@@ -113,10 +116,18 @@ export function notificationPayload(
       `TP2: ${price(values[3])}`,
       `TP3: ${price(values[4])}`,
     ].join("\n");
-    if (signal.status && signal.status !== "active") {
+    if (signal.status === "pending") {
+      title += " · WAITING FOR ENTRY";
+      body = "Confirmed setup. Wait for entry zone; not active yet.\n" + body;
+    } else if (signal.status && signal.status !== "active") {
       title += " · Closed";
       body = "Setup closed. Do not enter.\n" + body;
     }
+  }
+  if (delivery.event_type === "signal.waiting_cancelled") {
+    title = "Setup cancelled · no entry";
+    body =
+      "Waiting setup is no longer valid. Do not enter. No trade result recorded.";
   }
   if (delivery.event_type === "client.approved") {
     title = "Client approved";

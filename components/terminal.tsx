@@ -1008,7 +1008,11 @@ function SignalCard({
           {demo && <span className="outline-tag">DEMO</span>}
           <span className="status-tag">
             <span className="dot" />
-            {String(s.status)}
+            {s.entry_phase === "cancelled"
+              ? "CANCELLED · NO ENTRY"
+              : s.status === "pending"
+                ? "WAITING FOR ENTRY"
+                : String(s.status)}
           </span>
           <button
             className="icon-button"
@@ -1054,6 +1058,17 @@ function SignalCard({
           </div>
         ))}
       </div>
+      {s.status === "pending" && (
+        <p className="chart-feed-note">
+          Confirmed setup. Wait for price to return to the entry zone. Not
+          active yet.
+        </p>
+      )}
+      {s.entry_phase === "cancelled" && (
+        <p className="chart-feed-note">
+          Cancelled before entry. No trade result recorded.
+        </p>
+      )}
       <div className="signal-meta">
         <span>
           <Clock3 size={13} />

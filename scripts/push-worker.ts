@@ -184,7 +184,9 @@ async function deliver(item: Delivery) {
   try {
     let signal: PushSignalDetails | null = null;
     if (
-      ["signal.active", "signal.stop_hit"].includes(item.event_type) &&
+      ["signal.active", "signal.waiting", "signal.stop_hit"].includes(
+        item.event_type,
+      ) &&
       item.signal_id
     ) {
       const { data, error } = await db

@@ -5,7 +5,7 @@ export default function SignalEditor({
 }: {
   signal: Record<string, unknown>;
 }) {
-  if (s.status === "closed") return null;
+  if (s.status === "closed" || s.entry_phase === "waiting") return null;
   const active = s.status === "active";
   return (
     <details className="admin-editor">
