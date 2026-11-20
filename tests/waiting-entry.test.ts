@@ -37,6 +37,9 @@ async function service(db: PGlite) {
 test("waiting setups publish once, activate on a later zone return and never track outcomes before entry", async () => {
   const db = await database();
   try {
+    await db.exec(
+      "update public.telegram_signal_policy set enabled=true,starts_at=now()-interval '1 minute'",
+    );
     for (const buy of [true, false])
       for (const scenario of [
         "activate",
@@ -73,7 +76,23 @@ test("waiting setups publish once, activate on a later zone return and never tra
           ).rows[0].r;
         assert.equal((await apply(at, [plan])).waiting, 1);
         assert.equal((await apply(at, [plan])).waiting, 0);
+        assert.equal(
+          (
+            await db.query<{ n: number }>(
+              "select public.prepare_telegram_signal_events() n",
+            )
+          ).rows[0].n,
+          1,
+        );
         await db.exec("reset role");
+        assert.equal(
+          (
+            await db.query<{ event_type: string }>(
+              "select event_type from public.telegram_signal_queue",
+            )
+          ).rows[0].event_type,
+          "signal.waiting",
+        );
         let row = (
           await db.query<any>("select * from public.signals where source='mt5'")
         ).rows[0];
@@ -150,7 +169,26 @@ test("waiting setups publish once, activate on a later zone return and never tra
         await service(db);
         await ingest(next, at2, "b");
         const result = await apply(at2);
+        assert.equal(
+          (
+            await db.query<{ n: number }>(
+              "select public.prepare_telegram_signal_events() n",
+            )
+          ).rows[0].n,
+          1,
+        );
         await db.exec("reset role");
+        const relayKinds = (
+          await db.query<{ event_type: string }>(
+            "select event_type from public.telegram_signal_queue order by sequence",
+          )
+        ).rows.map((r) => r.event_type);
+        assert.deepEqual(relayKinds, [
+          "signal.waiting",
+          scenario === "activate"
+            ? "signal.active"
+            : "signal.waiting_cancelled",
+        ]);
         row = (
           await db.query<any>("select * from public.signals where source='mt5'")
         ).rows[0];

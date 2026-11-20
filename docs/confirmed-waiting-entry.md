@@ -17,4 +17,4 @@ App notifications distinguish waiting, active and cancelled-before-entry message
 3. Enable `automatic_engine_policy.base_entry_mode='base-waiting-v1'` and audit the owner authorization.
 4. Observe subsequent real completed confirmations. Enabling the capability does not backfill old confirmations or guarantee a signal every day.
 
-Existing Telegram integration forwards **active** entries and their management updates. Waiting/cancellation messages require the separate receiver update before adding those event types to its relay queue. Keep the current Telegram event allowlist until that receiver version is deployed. Pausing the waiting capability cancels outstanding waits without affecting existing active signal tracking.
+Telegram forwards waiting setups as the root message, activation as a reply, and cancellation-before-entry without claiming a trade result. Deploy the compatible receiver first, then apply the Telegram waiting-event migration. Existing active-only signals retain their original entry root and management replies. Pausing the waiting capability cancels outstanding waits without affecting existing active signal tracking.
